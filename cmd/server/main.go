@@ -44,7 +44,13 @@ func mainPageGauge(res http.ResponseWriter, req *http.Request) {
 	}
 
 	urlPart := strings.Split(req.URL.Path, "/")
-	if len(urlPart) == 4 {
+
+	if len(urlPart) == 4 && urlPart[3] == "" {
+		http.Error(res, "Bad data!", http.StatusNotFound)
+		return
+	}
+
+	if len(urlPart) != 5 {
 		http.Error(res, "Bad type!", http.StatusBadRequest)
 		return
 	}
@@ -82,7 +88,13 @@ func mainPageCounter(res http.ResponseWriter, req *http.Request) {
 	}
 
 	urlPart := strings.Split(req.URL.Path, "/")
-	if len(urlPart) == 4 {
+
+	if len(urlPart) == 4 && urlPart[3] == "" {
+		http.Error(res, "Bad data!", http.StatusNotFound)
+		return
+	}
+
+	if len(urlPart) != 5 {
 		http.Error(res, "Bad type!", http.StatusBadRequest)
 		return
 	}
