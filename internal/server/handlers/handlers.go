@@ -18,12 +18,12 @@ func newHandlers(store *service.HandlerStore) *handlers {
 	}
 }
 
-func Serve(store *service.HandlerStore) error {
+func Serve(store *service.HandlerStore, addr string) error {
 	h := newHandlers(store)
 	router := newRouter(h)
 
 	srv := &http.Server{
-		Addr:    `:8080`,
+		Addr:    addr,
 		Handler: router,
 	}
 

@@ -10,7 +10,7 @@ import (
 	"github.com/4aleksei/metricscum/internal/agent/service"
 )
 
-func MainHTTPClient(store *service.HandlerStore) error {
+func MainHTTPClient(store *service.HandlerStore, addr string, reportInterval uint) error {
 
 	//client := http.Client{}
 
@@ -24,11 +24,10 @@ func MainHTTPClient(store *service.HandlerStore) error {
 		Timeout:   time.Second * 5,
 		Transport: netTransport,
 	}
-
+	server := "http://" + addr + "/update/"
 	for {
 
-		time.Sleep(10 * time.Second)
-		server := "http://localhost:8080/update/"
+		time.Sleep(time.Duration(reportInterval) * time.Second)
 
 		service.RangeMetrics(store.Store, func(data string) error {
 
@@ -44,17 +43,6 @@ func MainHTTPClient(store *service.HandlerStore) error {
 				fmt.Println(err)
 				return err
 			}
-			//fmt.Println(resp.StatusCode)
-			/*for {
-
-				bs := make([]byte, 1014)
-				n, err := resp.Body.Read(bs)
-				//fmt.Println(string(bs[:n]))
-				if n == 0 || err != nil {
-					break
-				}
-
-			}*/
 
 			return nil
 		})
