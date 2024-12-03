@@ -41,3 +41,43 @@ func RecieveCounter(store repository.MetricsStorage, name string, valstr string)
 	repository.AddCounter(store, name, repository.CounterMetric(value))
 	return nil
 }
+
+func GetGauge(store repository.MetricsStorage, name string) (string, error) {
+
+	val, err := repository.GetGauge(store, name)
+
+	if err != nil {
+		return "", err
+	}
+	valstr := strconv.FormatFloat(float64(val), 'E', -1, 64)
+	return valstr, nil
+}
+
+func GetCounter(store repository.MetricsStorage, name string) (string, error) {
+
+	val, err := repository.GetCounter(store, name)
+
+	if err != nil {
+		return "", err
+	}
+	valstr := strconv.FormatInt(int64(val), 10)
+	return valstr, nil
+}
+
+func GetAllStore(store repository.MetricsStorage) (string, error) {
+
+	var valstr string
+
+	err := store.ReadAll(func(typename string, name string, value string) error {
+
+		valstr += (name + " : " + value + "\n")
+
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return valstr, nil
+}

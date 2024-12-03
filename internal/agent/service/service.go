@@ -20,7 +20,7 @@ var (
 	ErrBadValue = errors.New("invalid value")
 )
 
-func SetGauge(store repository.MetricsStorage, name string, val uint64) {
+func SetGauge(store repository.MetricsStorage, name string, val float64) {
 
 	repository.AddGauge(store, name, repository.GaugeMetric(val))
 
@@ -40,7 +40,7 @@ func SetCounter(store repository.MetricsStorage, name string, val uint64) {
 
 func RangeMetrics(store repository.MetricsStorage, prog func(string) error) error {
 
-	repository.ReadAll(store, func(typename string, name string, value string) error {
+	repository.ReadAllClearCounters(store, func(typename string, name string, value string) error {
 		data := typename + "/" + name + "/" + value
 
 		return prog(data)
