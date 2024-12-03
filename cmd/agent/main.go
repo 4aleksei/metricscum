@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 
@@ -49,6 +50,9 @@ func run() error {
 	pollInterval := flag.Uint("p", 2, "pollInterval")
 
 	flag.Parse()
+
+	addtenv := os.Getenv("ADDRESS")
+	fmt.Println(addtenv)
 
 	store := repository.NewStoreMux()
 	metricsService := service.NewHandlerStore(store)
