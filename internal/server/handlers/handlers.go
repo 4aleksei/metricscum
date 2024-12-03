@@ -53,6 +53,11 @@ func newRouter(h *handlers) http.Handler {
 	return mux
 }
 
+func (h *handlers) mainPageError(res http.ResponseWriter, req *http.Request) {
+
+	http.Error(res, "Bad request", http.StatusNotFound)
+}
+
 func (h *handlers) mainPageGauge(res http.ResponseWriter, req *http.Request) {
 
 	name := chi.URLParam(req, "name")
@@ -100,11 +105,6 @@ func (h *handlers) mainPageCounter(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
-}
-
-func (h *handlers) mainPageError(res http.ResponseWriter, req *http.Request) {
-
-	http.Error(res, "Bad request", http.StatusBadRequest)
 }
 
 func (h *handlers) mainPageGetGauge(res http.ResponseWriter, req *http.Request) {
