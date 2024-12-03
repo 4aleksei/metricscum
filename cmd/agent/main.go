@@ -21,5 +21,5 @@ func run() error {
 	store := repository.NewStoreMux()
 	metricsService := service.NewHandlerStore(store)
 	go gather.MainGather(metricsService)
-	return handlers.MainHttpClient(metricsService)
+	return handlers.MainHTTPClient(metricsService)
 }

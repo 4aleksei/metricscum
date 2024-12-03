@@ -10,7 +10,7 @@ import (
 	"github.com/4aleksei/metricscum/internal/agent/service"
 )
 
-func MainHttpClient(store *service.HandlerStore) error {
+func MainHTTPClient(store *service.HandlerStore) error {
 
 	//client := http.Client{}
 
