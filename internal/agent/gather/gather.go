@@ -9,12 +9,12 @@ import (
 	"github.com/4aleksei/metricscum/internal/agent/service"
 )
 
-func MainGather(store *service.HandlerStore) error {
+func MainGather(store *service.HandlerStore, pollInterval uint) error {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var m runtime.MemStats
 	for {
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(time.Duration(pollInterval) * time.Second)
 
 		runtime.ReadMemStats(&m)
 
