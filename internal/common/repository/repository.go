@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"strconv"
 	"sync"
 )
@@ -8,13 +9,18 @@ import (
 type GaugeMetric float64
 type CounterMetric int64
 
+var (
+	ErrNotFoundName = errors.New("not found name")
+)
+
 type MetricsStorage interface {
 	Update(string, GaugeMetric)
 	Add(string, CounterMetric)
-	GetGauge(string) GaugeMetric
-	GetCounter(string) CounterMetric
-	GetCounterAndClear(string) CounterMetric
+	GetGauge(string) (GaugeMetric, error)
+	GetCounter(string) (CounterMetric, error)
+	GetCounterAndClear(string) (CounterMetric, error)
 	ReadAll(func(typename string, name string, value string) error) error
+	ReadAllClearCounters(func(typename string, name string, value string) error) error
 }
 
 func AddGauge(storage MetricsStorage, name string, val GaugeMetric) {
@@ -29,14 +35,19 @@ func ReadAll(storage MetricsStorage, prog func(typename string, name string, val
 	return storage.ReadAll(prog)
 }
 
-func GetGauge(storage MetricsStorage, name string) GaugeMetric {
+func ReadAllClearCounters(storage MetricsStorage, prog func(typename string, name string, value string) error) error {
+
+	return storage.ReadAllClearCounters(prog)
+}
+
+func GetGauge(storage MetricsStorage, name string) (GaugeMetric, error) {
 	return storage.GetGauge(name)
 }
-func GetCounter(storage MetricsStorage, name string) CounterMetric {
+func GetCounter(storage MetricsStorage, name string) (CounterMetric, error) {
 	return storage.GetCounter(name)
 }
 
-func GetCounterAndClear(storage MetricsStorage, name string) CounterMetric {
+func GetCounterAndClear(storage MetricsStorage, name string) (CounterMetric, error) {
 	return storage.GetCounterAndClear(name)
 }
 
@@ -70,39 +81,53 @@ func (storage *MemStorageMux) Add(name string, val CounterMetric) {
 	storage.store.counter[name] += val
 }
 
-func (storage *MemStorage) GetCounter(name string) CounterMetric {
+func (storage *MemStorage) GetCounter(name string) (CounterMetric, error) {
 
-	return storage.counter[name]
+	if val, ok := storage.counter[name]; ok {
+		return val, nil
+	} else {
+		return val, ErrNotFoundName
+	}
+
 }
 
-func (storage *MemStorage) GetCounterAndClear(name string) CounterMetric {
-	val := storage.counter[name]
-	storage.counter[name] = 0
-	return val
+func (storage *MemStorage) GetCounterAndClear(name string) (CounterMetric, error) {
+
+	if val, ok := storage.counter[name]; ok {
+		storage.counter[name] = 0
+		return val, nil
+	} else {
+		return val, ErrNotFoundName
+	}
 }
 
-func (storage *MemStorage) GetGauge(name string) GaugeMetric {
-	return storage.gauge[name]
+func (storage *MemStorage) GetGauge(name string) (GaugeMetric, error) {
+
+	if val, ok := storage.gauge[name]; ok {
+		return val, nil
+	} else {
+		return val, ErrNotFoundName
+	}
+
 }
 
-func (storage *MemStorageMux) GetCounter(name string) CounterMetric {
+func (storage *MemStorageMux) GetCounter(name string) (CounterMetric, error) {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	return storage.store.counter[name]
+	return storage.store.GetCounter(name)
 }
 
-func (storage *MemStorageMux) GetCounterAndClear(name string) CounterMetric {
+func (storage *MemStorageMux) GetCounterAndClear(name string) (CounterMetric, error) {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	val := storage.store.counter[name]
-	storage.store.counter[name] = 0
-	return val
+
+	return storage.store.GetCounterAndClear(name)
 }
 
-func (storage *MemStorageMux) GetGauge(name string) GaugeMetric {
+func (storage *MemStorageMux) GetGauge(name string) (GaugeMetric, error) {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	return storage.store.gauge[name]
+	return storage.store.GetGauge(name)
 }
 
 func (storage *MemStorageMux) ReadAll(prog func(typename string, name string, value string) error) error {
@@ -113,7 +138,15 @@ func (storage *MemStorageMux) ReadAll(prog func(typename string, name string, va
 
 }
 
-func (storage *MemStorage) ReadAll(prog func(typename string, name string, value string) error) error {
+func (storage *MemStorageMux) ReadAllClearCounters(prog func(typename string, name string, value string) error) error {
+	storage.mux.Lock()
+	defer storage.mux.Unlock()
+
+	return storage.store.ReadAllClearCounters(prog)
+
+}
+
+func (storage *MemStorage) ReadAllClearCounters(prog func(typename string, name string, value string) error) error {
 
 	for name, gauge := range storage.gauge {
 		valstr := strconv.FormatFloat(float64(gauge), 'E', -1, 64)
@@ -134,6 +167,29 @@ func (storage *MemStorage) ReadAll(prog func(typename string, name string, value
 			storage.counter[name] = 0
 		}
 
+	}
+
+	return nil
+}
+
+func (storage *MemStorage) ReadAll(prog func(typename string, name string, value string) error) error {
+
+	for name, gauge := range storage.gauge {
+		valstr := strconv.FormatFloat(float64(gauge), 'E', -1, 64)
+
+		err := prog("gauge", name, valstr)
+		if err != nil {
+			return err
+		}
+	}
+
+	for name, counter := range storage.counter {
+
+		valstr := strconv.FormatInt(int64(counter), 10)
+		err := prog("counter", name, valstr)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
