@@ -6,15 +6,16 @@ import (
 
 	"time"
 
+	"github.com/4aleksei/metricscum/internal/agent/config"
 	"github.com/4aleksei/metricscum/internal/agent/service"
 )
 
-func MainGather(store *service.HandlerStore, pollInterval uint) error {
+func MainGather(store *service.HandlerStore, cfg *config.Config) error {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var m runtime.MemStats
 	for {
 
-		time.Sleep(time.Duration(pollInterval) * time.Second)
+		time.Sleep(time.Duration(cfg.PollInterval) * time.Second)
 
 		runtime.ReadMemStats(&m)
 

@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/4aleksei/metricscum/internal/server/config"
 	"github.com/4aleksei/metricscum/internal/server/service"
 	"github.com/go-chi/chi/v5"
 )
@@ -18,12 +19,12 @@ func newHandlers(store *service.HandlerStore) *handlers {
 	}
 }
 
-func Serve(store *service.HandlerStore, addr string) error {
+func Serve(store *service.HandlerStore, cfg *config.Config) error {
 	h := newHandlers(store)
 	router := newRouter(h)
 
 	srv := &http.Server{
-		Addr:    addr,
+		Addr:    cfg.Address,
 		Handler: router,
 	}
 
@@ -55,7 +56,7 @@ func newRouter(h *handlers) http.Handler {
 
 func (h *handlers) mainPageError(res http.ResponseWriter, req *http.Request) {
 
-	http.Error(res, "Bad request", http.StatusNotFound)
+	http.Error(res, "Bad request", http.StatusBadRequest)
 }
 
 func (h *handlers) mainPageGauge(res http.ResponseWriter, req *http.Request) {
