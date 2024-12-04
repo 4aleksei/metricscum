@@ -65,15 +65,8 @@ func Test_handlers_mainPageCounter(t *testing.T) {
 			resp, _ := testRequest(t, ts, tt.req.method, tt.req.url)
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode)
 			assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
-			/*
-				request := httptest.NewRequest(tt.req.method, tt.req.url, nil)
-				w := httptest.NewRecorder()
-				h.mainPageCounter(w, request)
 
-				result := w.Result()
-				assert.Equal(t, tt.want.statusCode, result.StatusCode)
-				assert.Equal(t, tt.want.contentType, result.Header.Get("Content-Type"))
-				result.Body.Close()*/
+			resp.Body.Close()
 		})
 	}
 }
