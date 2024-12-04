@@ -37,10 +37,12 @@ func newRouter(h *handlers) http.Handler {
 
 	mux.Post("/update/gauge/{name}/{value}", h.mainPageGauge)
 	mux.Post("/update/counter/{name}/{value}", h.mainPageCounter)
-	mux.Post("/update/", h.mainPageError)
+	//mux.Post("/update/*", h.mainPageError)
+	mux.Post("/*", h.mainPageError)
 
 	mux.Get("/value/gauge/{name}", h.mainPageGetGauge)
 	mux.Get("/value/counter/{name}", h.mainPageGetCounter)
+	mux.Get("/value/*", h.mainPageError)
 	mux.Get("/", h.mainPage)
 
 	//mux.HandleFunc("POST /update/{t}/{n}/{v}", h.Update)
