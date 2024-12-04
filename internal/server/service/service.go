@@ -49,7 +49,7 @@ func GetGauge(store repository.MetricsStorage, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	valstr := strconv.FormatFloat(float64(val), 'E', -1, 64)
+	valstr := strconv.FormatFloat(float64(val), 'f', -1, 64)
 	return valstr, nil
 }
 

@@ -149,7 +149,7 @@ func (storage *MemStorageMux) ReadAllClearCounters(prog func(typename string, na
 func (storage *MemStorage) ReadAllClearCounters(prog func(typename string, name string, value string) error) error {
 
 	for name, gauge := range storage.gauge {
-		valstr := strconv.FormatFloat(float64(gauge), 'E', -1, 64)
+		valstr := strconv.FormatFloat(float64(gauge), 'f', -1, 64)
 
 		err := prog("gauge", name, valstr)
 		if err != nil {
@@ -175,7 +175,7 @@ func (storage *MemStorage) ReadAllClearCounters(prog func(typename string, name 
 func (storage *MemStorage) ReadAll(prog func(typename string, name string, value string) error) error {
 
 	for name, gauge := range storage.gauge {
-		valstr := strconv.FormatFloat(float64(gauge), 'E', -1, 64)
+		valstr := strconv.FormatFloat(float64(gauge), 'f', -1, 64)
 
 		err := prog("gauge", name, valstr)
 		if err != nil {
