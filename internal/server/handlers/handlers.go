@@ -37,6 +37,8 @@ func newRouter(h *handlers) http.Handler {
 
 	mux.Post("/update/gauge/{name}/{value}", h.mainPageGauge)
 	mux.Post("/update/counter/{name}/{value}", h.mainPageCounter)
+	mux.Post("/update/gauge/", h.mainPageNotFound)
+	mux.Post("/update/counter/", h.mainPageNotFound)
 	//mux.Post("/update/*", h.mainPageError)
 	mux.Post("/*", h.mainPageError)
 
@@ -59,6 +61,11 @@ func newRouter(h *handlers) http.Handler {
 func (h *handlers) mainPageError(res http.ResponseWriter, req *http.Request) {
 
 	http.Error(res, "Bad request", http.StatusBadRequest)
+}
+
+func (h *handlers) mainPageNotFound(res http.ResponseWriter, req *http.Request) {
+
+	http.Error(res, "Not Found", http.StatusNotFound)
 }
 
 func (h *handlers) mainPageGauge(res http.ResponseWriter, req *http.Request) {
