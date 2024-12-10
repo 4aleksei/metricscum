@@ -12,25 +12,22 @@ import (
 type HandlersServer struct {
 	store *service.HandlerStore
 	cfg   *config.Config
+	srv   *http.Server
 }
 
 func NewHandlers(store *service.HandlerStore, cfg *config.Config) *HandlersServer {
 	h := new(HandlersServer)
 	h.store = store
 	h.cfg = cfg
+	h.srv = &http.Server{
+		Addr:    h.cfg.Address,
+		Handler: h.newRouter(),
+	}
 	return h
 }
 
 func (h *HandlersServer) Serve() error {
-
-	router := h.newRouter()
-
-	srv := &http.Server{
-		Addr:    h.cfg.Address,
-		Handler: router,
-	}
-
-	return srv.ListenAndServe()
+	return h.srv.ListenAndServe()
 }
 
 func (h *HandlersServer) newRouter() http.Handler {

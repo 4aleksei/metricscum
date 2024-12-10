@@ -17,7 +17,7 @@ const (
 	kindFloat64
 )
 
-type ValueMetric struct {
+type valueMetric struct {
 	kind       valueKind
 	valueFloat GaugeMetric
 	valueInt   CounterMetric
@@ -30,7 +30,7 @@ var (
 )
 
 type MemStorage struct {
-	values map[string]ValueMetric
+	values map[string]valueMetric
 }
 
 type MemStorageMux struct {
@@ -46,7 +46,7 @@ func (storage *MemStorage) Update(name string, val GaugeMetric) {
 		storage.values[name] = entry
 
 	} else {
-		storage.values[name] = ValueMetric{kind: kindFloat64, valueFloat: val}
+		storage.values[name] = valueMetric{kind: kindFloat64, valueFloat: val}
 	}
 
 }
@@ -59,7 +59,7 @@ func (storage *MemStorage) Add(name string, val CounterMetric) {
 		storage.values[name] = entry
 
 	} else {
-		storage.values[name] = ValueMetric{kind: kindInt64, valueInt: val}
+		storage.values[name] = valueMetric{kind: kindInt64, valueInt: val}
 	}
 
 }
@@ -189,7 +189,7 @@ func (storage *MemStorage) ReadAll(prog FuncReadAllMetric) error {
 
 func NewStore() *MemStorage {
 	p := new(MemStorage)
-	p.values = make(map[string]ValueMetric)
+	p.values = make(map[string]valueMetric)
 	return p
 }
 

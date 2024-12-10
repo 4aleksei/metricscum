@@ -23,6 +23,6 @@ func run() error {
 
 	gather := gather.NewAppGather(metricsService, cfg)
 	gather.RunRutine()
-	MainHTTPClient := handlers.NewApp(metricsService, cfg)
-	return MainHTTPClient.Run()
+	mainHTTPClient := handlers.NewApp(metricsService, cfg)
+	return mainHTTPClient.Run()
 }
