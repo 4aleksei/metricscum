@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"time"
@@ -11,9 +11,19 @@ import (
 	"github.com/4aleksei/metricscum/internal/agent/service"
 )
 
-func MainHTTPClient(store *service.HandlerStore, cfg *config.Config) error {
+type App struct {
+	serv *service.HandlerStore
+	cfg  *config.Config
+}
 
-	//client := http.Client{}
+func NewApp(store *service.HandlerStore, cfg *config.Config) *App {
+	p := new(App)
+	p.serv = store
+	p.cfg = cfg
+	return p
+}
+
+func (app *App) Run() error {
 
 	var netTransport = &http.Transport{
 		Dial: (&net.Dialer{
@@ -25,23 +35,23 @@ func MainHTTPClient(store *service.HandlerStore, cfg *config.Config) error {
 		Timeout:   time.Second * 5,
 		Transport: netTransport,
 	}
-	server := "http://" + cfg.Address + "/update/"
+	server := "http://" + app.cfg.Address + "/update/"
 	for {
 
-		time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
+		time.Sleep(time.Duration(app.cfg.ReportInterval) * time.Second)
 
-		service.RangeMetrics(store.Store, func(data string) error {
+		app.serv.RangeMetrics(func(data string) error {
 
 			resp, err := client.Post(server+data, "Content-Type: text/plain", nil)
 			if err != nil {
-				fmt.Println(err)
+				log.Println(err)
 				return err
 			}
 			defer resp.Body.Close()
 
 			_, errcoppy := io.Copy(io.Discard, resp.Body)
 			if errcoppy != nil {
-				fmt.Println(err)
+				log.Println(err)
 				return err
 			}
 

@@ -2,7 +2,7 @@ package config
 
 import (
 	"flag"
-	"fmt"
+	"log"
 	"os"
 	"strconv"
 )
@@ -30,7 +30,7 @@ func GetConfig() *Config {
 
 		val, err := strconv.Atoi(envReportInterval)
 		if err != nil {
-			fmt.Println("Error in converting env report interval to int: ", err)
+			log.Fatalln("Error in converting env report interval to int: ", err)
 		} else {
 			cfg.ReportInterval = uint(val)
 		}
@@ -41,7 +41,7 @@ func GetConfig() *Config {
 
 		val, err := strconv.Atoi(envPollInterval)
 		if err != nil {
-			fmt.Println("Error in converting env report interval to int: ", err)
+			log.Fatalln("Error in converting env report interval to int: ", err)
 		} else {
 			cfg.PollInterval = uint(val)
 		}

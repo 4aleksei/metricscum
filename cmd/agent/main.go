@@ -18,9 +18,11 @@ func main() {
 
 func run() error {
 	cfg := config.GetConfig()
-
 	store := repository.NewStoreMux()
 	metricsService := service.NewHandlerStore(store)
-	go gather.MainGather(metricsService, cfg)
-	return handlers.MainHTTPClient(metricsService, cfg)
+
+	gather := gather.NewAppGather(metricsService, cfg)
+	gather.RunRutine()
+	MainHTTPClient := handlers.NewApp(metricsService, cfg)
+	return MainHTTPClient.Run()
 }

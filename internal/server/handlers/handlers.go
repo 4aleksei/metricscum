@@ -9,37 +9,37 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type handlers struct {
+type HandlersServer struct {
 	store *service.HandlerStore
+	cfg   *config.Config
 }
 
-func newHandlers(store *service.HandlerStore) *handlers {
-	return &handlers{
-		store: store,
-	}
+func NewHandlers(store *service.HandlerStore, cfg *config.Config) *HandlersServer {
+	h := new(HandlersServer)
+	h.store = store
+	h.cfg = cfg
+	return h
 }
 
-func Serve(store *service.HandlerStore, cfg *config.Config) error {
-	h := newHandlers(store)
-	router := newRouter(h)
+func (h *HandlersServer) Serve() error {
+
+	router := h.newRouter()
 
 	srv := &http.Server{
-		Addr:    cfg.Address,
+		Addr:    h.cfg.Address,
 		Handler: router,
 	}
 
 	return srv.ListenAndServe()
 }
 
-func newRouter(h *handlers) http.Handler {
-	//mux := http.NewServeMux()
+func (h *HandlersServer) newRouter() http.Handler {
 	mux := chi.NewRouter()
 
 	mux.Post("/update/gauge/{name}/{value}", h.mainPageGauge)
 	mux.Post("/update/counter/{name}/{value}", h.mainPageCounter)
 	mux.Post("/update/gauge/", h.mainPageNotFound)
 	mux.Post("/update/counter/", h.mainPageNotFound)
-	//mux.Post("/update/*", h.mainPageError)
 	mux.Post("/*", h.mainPageError)
 
 	mux.Get("/value/gauge/{name}", h.mainPageGetGauge)
@@ -47,28 +47,20 @@ func newRouter(h *handlers) http.Handler {
 	mux.Get("/value/*", h.mainPageError)
 	mux.Get("/", h.mainPage)
 
-	//mux.HandleFunc("POST /update/{t}/{n}/{v}", h.Update)
-	//mux.HandleFunc("GET /value/{t}/{n}", h.Get)
-	//mux.HandleFunc("GET /", h.TypeNames)
-
-	//mux.HandleFunc(`/update/gauge/`, h.mainPageGauge)
-	//mux.HandleFunc(`/update/counter/`, h.mainPageCounter)
-	//mux.HandleFunc(`/update/`, h.mainPageError)
-
 	return mux
 }
 
-func (h *handlers) mainPageError(res http.ResponseWriter, req *http.Request) {
+func (h *HandlersServer) mainPageError(res http.ResponseWriter, req *http.Request) {
 
 	http.Error(res, "Bad request", http.StatusBadRequest)
 }
 
-func (h *handlers) mainPageNotFound(res http.ResponseWriter, req *http.Request) {
+func (h *HandlersServer) mainPageNotFound(res http.ResponseWriter, req *http.Request) {
 
 	http.Error(res, "Not Found", http.StatusNotFound)
 }
 
-func (h *handlers) mainPageGauge(res http.ResponseWriter, req *http.Request) {
+func (h *HandlersServer) mainPageGauge(res http.ResponseWriter, req *http.Request) {
 
 	name := chi.URLParam(req, "name")
 	value := chi.URLParam(req, "value")
@@ -83,7 +75,7 @@ func (h *handlers) mainPageGauge(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err := service.RecieveGauge(h.store.Store, name, value)
+	err := h.store.RecieveGauge(name, value)
 
 	if err != nil {
 		http.Error(res, "Bad gauge value!", http.StatusBadRequest)
@@ -93,7 +85,7 @@ func (h *handlers) mainPageGauge(res http.ResponseWriter, req *http.Request) {
 
 }
 
-func (h *handlers) mainPageCounter(res http.ResponseWriter, req *http.Request) {
+func (h *HandlersServer) mainPageCounter(res http.ResponseWriter, req *http.Request) {
 
 	name := chi.URLParam(req, "name")
 	value := chi.URLParam(req, "value")
@@ -108,7 +100,7 @@ func (h *handlers) mainPageCounter(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err := service.RecieveCounter(h.store.Store, name, value)
+	err := h.store.RecieveCounter(name, value)
 
 	if err != nil {
 		http.Error(res, "Bad counter value!", http.StatusBadRequest)
@@ -117,7 +109,7 @@ func (h *handlers) mainPageCounter(res http.ResponseWriter, req *http.Request) {
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 }
 
-func (h *handlers) mainPageGetGauge(res http.ResponseWriter, req *http.Request) {
+func (h *HandlersServer) mainPageGetGauge(res http.ResponseWriter, req *http.Request) {
 
 	name := chi.URLParam(req, "name")
 
@@ -126,7 +118,7 @@ func (h *handlers) mainPageGetGauge(res http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	val, err := service.GetGauge(h.store.Store, name)
+	val, err := h.store.GetGauge(name)
 
 	if err != nil {
 		http.Error(res, "Not found value!", http.StatusNotFound)
@@ -138,7 +130,7 @@ func (h *handlers) mainPageGetGauge(res http.ResponseWriter, req *http.Request) 
 
 }
 
-func (h *handlers) mainPageGetCounter(res http.ResponseWriter, req *http.Request) {
+func (h *HandlersServer) mainPageGetCounter(res http.ResponseWriter, req *http.Request) {
 
 	name := chi.URLParam(req, "name")
 
@@ -147,7 +139,7 @@ func (h *handlers) mainPageGetCounter(res http.ResponseWriter, req *http.Request
 		return
 	}
 
-	val, err := service.GetCounter(h.store.Store, name)
+	val, err := h.store.GetCounter(name)
 
 	if err != nil {
 		http.Error(res, "Not found value!", http.StatusNotFound)
@@ -159,11 +151,11 @@ func (h *handlers) mainPageGetCounter(res http.ResponseWriter, req *http.Request
 
 }
 
-func (h *handlers) mainPage(res http.ResponseWriter, req *http.Request) {
+func (h *HandlersServer) mainPage(res http.ResponseWriter, req *http.Request) {
 
 	if req.URL.String() == "" || req.URL.String() == "/" {
 
-		val, err := service.GetAllStore(h.store.Store)
+		val, err := h.store.GetAllStore()
 
 		if err != nil {
 			http.Error(res, "Not found value!", http.StatusNotFound)

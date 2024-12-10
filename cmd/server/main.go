@@ -21,5 +21,6 @@ func run() error {
 	store := repository.NewStore()
 	metricsService := service.NewHandlerStore(store)
 
-	return handlers.Serve(metricsService, cfg)
+	server := handlers.NewHandlers(metricsService, cfg)
+	return server.Serve()
 }

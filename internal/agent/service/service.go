@@ -6,45 +6,52 @@ import (
 	"github.com/4aleksei/metricscum/internal/common/repository"
 )
 
-type HandlerStore struct {
-	Store repository.MetricsStorage
+type AgentMetricsStorage interface {
+	Update(string, repository.GaugeMetric)
+	Add(string, repository.CounterMetric)
+	ReadAllClearCounters(repository.FuncReadAllMetric) error
 }
 
-func NewHandlerStore(store repository.MetricsStorage) *HandlerStore {
-	return &HandlerStore{
-		Store: store,
-	}
+type HandlerStore struct {
+	Store AgentMetricsStorage
+}
+
+func NewHandlerStore(store AgentMetricsStorage) *HandlerStore {
+
+	p := new(HandlerStore)
+	p.Store = store
+
+	return p
 }
 
 var (
 	ErrBadValue = errors.New("invalid value")
 )
 
-func SetGauge(store repository.MetricsStorage, name string, val float64) {
+func (h *HandlerStore) SetGauge(name string, val float64) {
 
-	repository.AddGauge(store, name, repository.GaugeMetric(val))
-
-}
-
-func SetGaugeFloat(store repository.MetricsStorage, name string, val float64) {
-
-	repository.AddGauge(store, name, repository.GaugeMetric(val))
+	h.Store.Update(name, repository.GaugeMetric(val))
 
 }
 
-func SetCounter(store repository.MetricsStorage, name string, val uint64) {
+func (h *HandlerStore) SetGaugeFloat(name string, val float64) {
 
-	repository.AddCounter(store, name, repository.CounterMetric(val))
+	h.Store.Update(name, repository.GaugeMetric(val))
 
 }
 
-func RangeMetrics(store repository.MetricsStorage, prog func(string) error) error {
+func (h *HandlerStore) SetCounter(name string, val uint64) {
 
-	repository.ReadAllClearCounters(store, func(typename string, name string, value string) error {
+	h.Store.Add(name, repository.CounterMetric(val))
+
+}
+
+func (h *HandlerStore) RangeMetrics(prog func(string) error) error {
+
+	err := h.Store.ReadAllClearCounters(func(typename string, name string, value string) error {
 		data := typename + "/" + name + "/" + value
-
 		return prog(data)
 	})
 
-	return nil
+	return err
 }

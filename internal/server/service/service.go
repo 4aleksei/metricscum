@@ -8,43 +8,51 @@ import (
 	"github.com/4aleksei/metricscum/internal/common/repository"
 )
 
-type HandlerStore struct {
-	Store repository.MetricsStorage
+type ServerMetricsStorage interface {
+	Update(string, repository.GaugeMetric)
+	Add(string, repository.CounterMetric)
+	GetGauge(string) (repository.GaugeMetric, error)
+	GetCounter(string) (repository.CounterMetric, error)
+	ReadAll(repository.FuncReadAllMetric) error
 }
 
-func NewHandlerStore(store repository.MetricsStorage) *HandlerStore {
-	return &HandlerStore{
-		Store: store,
-	}
+type HandlerStore struct {
+	store ServerMetricsStorage
+}
+
+func NewHandlerStore(store ServerMetricsStorage) *HandlerStore {
+	h := new(HandlerStore)
+	h.store = store
+	return h
 }
 
 var (
 	ErrBadValue = errors.New("invalid value")
 )
 
-func RecieveGauge(store repository.MetricsStorage, name string, valstr string) error {
+func (h *HandlerStore) RecieveGauge(name string, valstr string) error {
 
 	value, err := strconv.ParseFloat(valstr, 64)
 	if err != nil {
 		return fmt.Errorf("failed %w : %w", ErrBadValue, err)
 	}
 
-	repository.AddGauge(store, name, repository.GaugeMetric(value))
+	h.store.Update(name, repository.GaugeMetric(value))
 	return nil
 }
 
-func RecieveCounter(store repository.MetricsStorage, name string, valstr string) error {
+func (h *HandlerStore) RecieveCounter(name string, valstr string) error {
 	value, err := strconv.ParseInt(valstr, 10, 64)
 	if err != nil {
 		return fmt.Errorf("failed %w : %w", ErrBadValue, err)
 	}
-	repository.AddCounter(store, name, repository.CounterMetric(value))
+	h.store.Add(name, repository.CounterMetric(value))
 	return nil
 }
 
-func GetGauge(store repository.MetricsStorage, name string) (string, error) {
+func (h *HandlerStore) GetGauge(name string) (string, error) {
 
-	val, err := repository.GetGauge(store, name)
+	val, err := h.store.GetGauge(name)
 
 	if err != nil {
 		return "", err
@@ -53,9 +61,9 @@ func GetGauge(store repository.MetricsStorage, name string) (string, error) {
 	return valstr, nil
 }
 
-func GetCounter(store repository.MetricsStorage, name string) (string, error) {
+func (h *HandlerStore) GetCounter(name string) (string, error) {
 
-	val, err := repository.GetCounter(store, name)
+	val, err := h.store.GetCounter(name)
 
 	if err != nil {
 		return "", err
@@ -64,11 +72,11 @@ func GetCounter(store repository.MetricsStorage, name string) (string, error) {
 	return valstr, nil
 }
 
-func GetAllStore(store repository.MetricsStorage) (string, error) {
+func (h *HandlerStore) GetAllStore() (string, error) {
 
 	var valstr string
 
-	err := store.ReadAll(func(typename string, name string, value string) error {
+	err := h.store.ReadAll(func(typename string, name string, value string) error {
 
 		valstr += (name + " : " + value + "\n")
 

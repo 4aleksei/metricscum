@@ -39,11 +39,11 @@ func Test_handlers_mainPageCounter(t *testing.T) {
 		method string
 		url    string
 	}
-	store := service.NewHandlerStore(repository.NewStore()) //
-	h := &handlers{
-		store: store,
-	}
-	ts := httptest.NewServer(newRouter(h))
+	store := service.NewHandlerStore(repository.NewStore())
+	h := new(HandlersServer)
+	h.store = store
+
+	ts := httptest.NewServer(h.newRouter())
 	defer ts.Close()
 
 	tests := []struct {
@@ -56,7 +56,8 @@ func Test_handlers_mainPageCounter(t *testing.T) {
 		{name: "Test No2", req: request{method: http.MethodPost, url: "/update/counter/test2/10"}, want: want{statusCode: http.StatusOK, contentType: "text/plain; charset=utf-8"}},
 
 		{name: "Test No3", req: request{method: http.MethodPost, url: "/update/counter/"}, want: want{statusCode: http.StatusNotFound, contentType: "text/plain; charset=utf-8"}},
-		{name: "Test No4", req: request{method: http.MethodPost, url: "/update/unknown/test3/10"}, want: want{statusCode: http.StatusBadRequest, contentType: "text/plain; charset=utf-8"}},
+		{name: "Test No4", req: request{method: http.MethodPost, url: "/update/gauge/"}, want: want{statusCode: http.StatusNotFound, contentType: "text/plain; charset=utf-8"}},
+		{name: "Test No5", req: request{method: http.MethodPost, url: "/update/unknown/test3/10"}, want: want{statusCode: http.StatusBadRequest, contentType: "text/plain; charset=utf-8"}},
 	}
 
 	for _, tt := range tests {
