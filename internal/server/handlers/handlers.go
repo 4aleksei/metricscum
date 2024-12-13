@@ -3,10 +3,13 @@ package handlers
 import (
 	"io"
 	"net/http"
+	"time"
 
+	"github.com/4aleksei/metricscum/internal/common/logger"
 	"github.com/4aleksei/metricscum/internal/server/config"
 	"github.com/4aleksei/metricscum/internal/server/service"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 type HandlersServer struct {
@@ -30,19 +33,71 @@ func (h *HandlersServer) Serve() error {
 	return h.srv.ListenAndServe()
 }
 
+type (
+	// берём структуру для хранения сведений об ответе
+	responseData struct {
+		status int
+		size   int
+	}
+
+	// добавляем реализацию http.ResponseWriter
+	loggingResponseWriter struct {
+		http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
+		responseData        *responseData
+	}
+)
+
+func (r *loggingResponseWriter) Write(b []byte) (int, error) {
+	// записываем ответ, используя оригинальный http.ResponseWriter
+	size, err := r.ResponseWriter.Write(b)
+	r.responseData.size += size // захватываем размер
+	return size, err
+}
+
+func (r *loggingResponseWriter) WriteHeader(statusCode int) {
+	// записываем код статуса, используя оригинальный http.ResponseWriter
+	r.ResponseWriter.WriteHeader(statusCode)
+	r.responseData.status = statusCode // захватываем код статуса
+}
+
+func WithLogging(h http.HandlerFunc) http.HandlerFunc {
+	logFn := func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		responseData := &responseData{
+			status: 0,
+			size:   0,
+		}
+		lw := loggingResponseWriter{
+			ResponseWriter: w, // встраиваем оригинальный http.ResponseWriter
+			responseData:   responseData,
+		}
+		h.ServeHTTP(&lw, r) // внедряем реализацию http.ResponseWriter
+
+		duration := time.Since(start)
+
+		logger.Log.Info("got incoming HTTP request",
+			zap.String("uri", r.RequestURI),
+			zap.String("method", r.Method),
+			zap.Duration("duration", duration),
+			zap.Int("response status", responseData.status),
+			zap.Int("size", responseData.size)) // передаем в логгер перехваченные данные)
+	}
+	return http.HandlerFunc(logFn)
+}
+
 func (h *HandlersServer) newRouter() http.Handler {
 	mux := chi.NewRouter()
 
-	mux.Post("/update/gauge/{name}/{value}", h.mainPageGauge)
-	mux.Post("/update/counter/{name}/{value}", h.mainPageCounter)
-	mux.Post("/update/gauge/", h.mainPageNotFound)
-	mux.Post("/update/counter/", h.mainPageNotFound)
-	mux.Post("/*", h.mainPageError)
-
-	mux.Get("/value/gauge/{name}", h.mainPageGetGauge)
-	mux.Get("/value/counter/{name}", h.mainPageGetCounter)
-	mux.Get("/value/*", h.mainPageError)
-	mux.Get("/", h.mainPage)
+	mux.Post("/update/gauge/{name}/{value}", WithLogging(h.mainPageGauge))
+	mux.Post("/update/counter/{name}/{value}", WithLogging(h.mainPageCounter))
+	mux.Post("/update/gauge/", WithLogging(h.mainPageNotFound))
+	mux.Post("/update/counter/", WithLogging(h.mainPageNotFound))
+	mux.Post("/*", WithLogging(h.mainPageError))
+	mux.Get("/value/gauge/{name}", WithLogging(h.mainPageGetGauge))
+	mux.Get("/value/counter/{name}", WithLogging(h.mainPageGetCounter))
+	mux.Get("/value/*", WithLogging(h.mainPageError))
+	mux.Get("/", WithLogging(h.mainPage))
 
 	return mux
 }

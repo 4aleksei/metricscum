@@ -39,52 +39,38 @@ type MemStorageMux struct {
 }
 
 func (storage *MemStorage) Update(name string, val GaugeMetric) {
-
 	if entry, ok := storage.values[name]; ok {
 		entry.kind = kindFloat64
 		entry.valueFloat = val
 		storage.values[name] = entry
-
 	} else {
 		storage.values[name] = valueMetric{kind: kindFloat64, valueFloat: val}
 	}
-
 }
 
 func (storage *MemStorage) Add(name string, val CounterMetric) {
 	if entry, ok := storage.values[name]; ok {
-
 		entry.kind = kindInt64
 		entry.valueInt += val
 		storage.values[name] = entry
-
 	} else {
 		storage.values[name] = valueMetric{kind: kindInt64, valueInt: val}
 	}
-
 }
-
 func (storage *MemStorage) GetCounter(name string) (CounterMetric, error) {
-
 	if entry, ok := storage.values[name]; ok {
-
 		if entry.kind == kindInt64 {
 			return entry.valueInt, nil
 		}
-
 	}
-
 	return 0, ErrNotFoundName
 }
 
 func (storage *MemStorage) GetGauge(name string) (GaugeMetric, error) {
-
 	if entry, ok := storage.values[name]; ok {
-
 		if entry.kind == kindFloat64 {
 			return entry.valueFloat, nil
 		}
-
 	}
 	return 0, ErrNotFoundName
 }
@@ -116,23 +102,15 @@ func (storage *MemStorageMux) GetGauge(name string) (GaugeMetric, error) {
 func (storage *MemStorageMux) ReadAll(prog FuncReadAllMetric) error {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-
 	return storage.store.ReadAll(prog)
-
 }
-
 func (storage *MemStorageMux) ReadAllClearCounters(prog FuncReadAllMetric) error {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-
 	return storage.store.ReadAllClearCounters(prog)
-
 }
-
 func (storage *MemStorage) ReadAllClearCounters(prog FuncReadAllMetric) error {
-
 	for name, val := range storage.values {
-
 		var valstr string
 		var ty string
 		switch val.kind {
@@ -145,7 +123,6 @@ func (storage *MemStorage) ReadAllClearCounters(prog FuncReadAllMetric) error {
 		default:
 			continue
 		}
-
 		err := prog(ty, name, valstr)
 		if err != nil {
 			return err
@@ -154,16 +131,12 @@ func (storage *MemStorage) ReadAllClearCounters(prog FuncReadAllMetric) error {
 			val.valueInt = 0
 			storage.values[name] = val
 		}
-
 	}
-
 	return nil
 }
 
 func (storage *MemStorage) ReadAll(prog FuncReadAllMetric) error {
-
 	for name, val := range storage.values {
-
 		var valstr string
 		var ty string
 		switch val.kind {
@@ -176,14 +149,11 @@ func (storage *MemStorage) ReadAll(prog FuncReadAllMetric) error {
 		default:
 			continue
 		}
-
 		err := prog(ty, name, valstr)
 		if err != nil {
 			return err
 		}
-
 	}
-
 	return nil
 }
 

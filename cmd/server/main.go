@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"github.com/4aleksei/metricscum/internal/common/logger"
 	"github.com/4aleksei/metricscum/internal/common/repository"
 	"github.com/4aleksei/metricscum/internal/server/config"
 	"github.com/4aleksei/metricscum/internal/server/handlers"
@@ -10,6 +11,7 @@ import (
 )
 
 func main() {
+
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}
@@ -17,7 +19,7 @@ func main() {
 
 func run() error {
 	cfg := config.GetConfig()
-
+	logger.Initialize(cfg.Level)
 	store := repository.NewStore()
 	metricsService := service.NewHandlerStore(store)
 
