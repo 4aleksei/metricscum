@@ -34,30 +34,26 @@ func (h *HandlersServer) Serve() error {
 }
 
 type (
-	// берём структуру для хранения сведений об ответе
 	responseData struct {
 		status int
 		size   int
 	}
 
-	// добавляем реализацию http.ResponseWriter
 	loggingResponseWriter struct {
-		http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
-		responseData        *responseData
+		http.ResponseWriter
+		responseData *responseData
 	}
 )
 
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
-	// записываем ответ, используя оригинальный http.ResponseWriter
 	size, err := r.ResponseWriter.Write(b)
-	r.responseData.size += size // захватываем размер
+	r.responseData.size += size
 	return size, err
 }
 
 func (r *loggingResponseWriter) WriteHeader(statusCode int) {
-	// записываем код статуса, используя оригинальный http.ResponseWriter
 	r.ResponseWriter.WriteHeader(statusCode)
-	r.responseData.status = statusCode // захватываем код статуса
+	r.responseData.status = statusCode
 }
 
 func WithLogging(h http.HandlerFunc) http.HandlerFunc {
@@ -69,10 +65,10 @@ func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 			size:   0,
 		}
 		lw := loggingResponseWriter{
-			ResponseWriter: w, // встраиваем оригинальный http.ResponseWriter
+			ResponseWriter: w,
 			responseData:   responseData,
 		}
-		h.ServeHTTP(&lw, r) // внедряем реализацию http.ResponseWriter
+		h.ServeHTTP(&lw, r)
 
 		duration := time.Since(start)
 
@@ -80,8 +76,8 @@ func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 			zap.String("uri", r.RequestURI),
 			zap.String("method", r.Method),
 			zap.Duration("duration", duration),
-			zap.Int("response status", responseData.status),
-			zap.Int("size", responseData.size)) // передаем в логгер перехваченные данные)
+			zap.Int("resp_status", responseData.status),
+			zap.Int("resp_size", responseData.size))
 	}
 	return http.HandlerFunc(logFn)
 }
@@ -103,12 +99,10 @@ func (h *HandlersServer) newRouter() http.Handler {
 }
 
 func (h *HandlersServer) mainPageError(res http.ResponseWriter, req *http.Request) {
-
 	http.Error(res, "Bad request", http.StatusBadRequest)
 }
 
 func (h *HandlersServer) mainPageNotFound(res http.ResponseWriter, req *http.Request) {
-
 	http.Error(res, "Not Found", http.StatusNotFound)
 }
 
@@ -133,6 +127,7 @@ func (h *HandlersServer) mainPageGauge(res http.ResponseWriter, req *http.Reques
 		http.Error(res, "Bad gauge value!", http.StatusBadRequest)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 
 }
@@ -158,6 +153,8 @@ func (h *HandlersServer) mainPageCounter(res http.ResponseWriter, req *http.Requ
 		http.Error(res, "Bad counter value!", http.StatusBadRequest)
 		return
 	}
+
+	res.WriteHeader(http.StatusOK)
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 }
 
@@ -177,6 +174,7 @@ func (h *HandlersServer) mainPageGetGauge(res http.ResponseWriter, req *http.Req
 		return
 	}
 
+	res.WriteHeader(http.StatusOK)
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	io.WriteString(res, val)
 
@@ -197,8 +195,9 @@ func (h *HandlersServer) mainPageGetCounter(res http.ResponseWriter, req *http.R
 		http.Error(res, "Not found value!", http.StatusNotFound)
 		return
 	}
-	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 
+	res.WriteHeader(http.StatusOK)
+	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	io.WriteString(res, val)
 
 }
@@ -213,6 +212,7 @@ func (h *HandlersServer) mainPage(res http.ResponseWriter, req *http.Request) {
 			http.Error(res, "Not found value!", http.StatusNotFound)
 			return
 		}
+		res.WriteHeader(http.StatusOK)
 		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 
 		io.WriteString(res, val)

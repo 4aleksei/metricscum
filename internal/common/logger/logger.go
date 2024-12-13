@@ -1,15 +1,12 @@
 package logger
 
 import (
-	"net/http"
-
 	"go.uber.org/zap"
 )
 
 var Log *zap.Logger = zap.NewNop()
 
 func Initialize(level string) error {
-	// преобразуем текстовый уровень логирования в zap.AtomicLevel
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {
 		return err
@@ -28,8 +25,7 @@ func Initialize(level string) error {
 	return nil
 }
 
-// RequestLogger — middleware-логер для входящих HTTP-запросов.
-func RequestLogger(h http.HandlerFunc) http.Handler {
+/*func RequestLogger(h http.HandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		Log.Debug("got incoming HTTP request",
 			zap.String("method", r.Method),
@@ -38,3 +34,4 @@ func RequestLogger(h http.HandlerFunc) http.Handler {
 		h(w, r)
 	})
 }
+*/
