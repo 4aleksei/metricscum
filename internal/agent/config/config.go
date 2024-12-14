@@ -9,16 +9,22 @@ import (
 
 type Config struct {
 	Address        string
+	Level          string
 	ReportInterval uint
 	PollInterval   uint
 }
 
+const AddressDefault string = ":8080"
+const ReportIntervalDefault uint = 10
+const PollIntervalDefault uint = 2
+const LevelDefault string = "info"
+
 func GetConfig() *Config {
 	cfg := new(Config)
-	flag.StringVar(&cfg.Address, "a", ":8080", "address and port to run server")
-
-	flag.UintVar(&cfg.ReportInterval, "r", 10, "ReportInterval")
-	flag.UintVar(&cfg.PollInterval, "p", 2, "PollInterval")
+	flag.StringVar(&cfg.Address, "a", AddressDefault, "address and port to run server")
+	flag.StringVar(&cfg.Level, "l", LevelDefault, "level logging")
+	flag.UintVar(&cfg.ReportInterval, "r", ReportIntervalDefault, "ReportInterval")
+	flag.UintVar(&cfg.PollInterval, "p", PollIntervalDefault, "PollInterval")
 
 	flag.Parse()
 
