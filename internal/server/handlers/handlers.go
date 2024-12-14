@@ -127,8 +127,9 @@ func (h *HandlersServer) mainPageGauge(res http.ResponseWriter, req *http.Reques
 		http.Error(res, "Bad gauge value!", http.StatusBadRequest)
 		return
 	}
-	res.WriteHeader(http.StatusOK)
+
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 
 }
 
@@ -153,9 +154,9 @@ func (h *HandlersServer) mainPageCounter(res http.ResponseWriter, req *http.Requ
 		http.Error(res, "Bad counter value!", http.StatusBadRequest)
 		return
 	}
-
-	res.WriteHeader(http.StatusOK)
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
+
 }
 
 func (h *HandlersServer) mainPageGetGauge(res http.ResponseWriter, req *http.Request) {
@@ -174,8 +175,8 @@ func (h *HandlersServer) mainPageGetGauge(res http.ResponseWriter, req *http.Req
 		return
 	}
 
-	res.WriteHeader(http.StatusOK)
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 	io.WriteString(res, val)
 
 }
@@ -196,8 +197,8 @@ func (h *HandlersServer) mainPageGetCounter(res http.ResponseWriter, req *http.R
 		return
 	}
 
-	res.WriteHeader(http.StatusOK)
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 	io.WriteString(res, val)
 
 }
@@ -212,9 +213,9 @@ func (h *HandlersServer) mainPage(res http.ResponseWriter, req *http.Request) {
 			http.Error(res, "Not found value!", http.StatusNotFound)
 			return
 		}
-		res.WriteHeader(http.StatusOK)
-		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 
+		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+		res.WriteHeader(http.StatusOK)
 		io.WriteString(res, val)
 
 	} else {

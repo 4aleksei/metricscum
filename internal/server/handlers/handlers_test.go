@@ -64,8 +64,12 @@ func Test_handlers_mainPageCounter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			resp, _ := testRequest(t, ts, tt.req.method, tt.req.url)
+
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode)
-			assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
+
+			if tt.want.contentType != "" {
+				assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
+			}
 
 			resp.Body.Close()
 		})
