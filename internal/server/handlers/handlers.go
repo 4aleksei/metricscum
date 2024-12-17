@@ -42,7 +42,6 @@ type (
 		status int
 		size   int
 	}
-
 	loggingResponseWriter struct {
 		http.ResponseWriter
 		responseData *responseData
@@ -68,10 +67,22 @@ func WithLogging(h http.Handler) http.Handler {
 			status: 0,
 			size:   0,
 		}
+
 		lw := loggingResponseWriter{
 			ResponseWriter: w,
 			responseData:   responseData,
 		}
+
+		pr, pw := io.Pipe()
+		tee := io.TeeReader(r.Body, pw)
+		r.Body = pr
+		go func() {
+			body, _ := io.ReadAll(tee)
+			defer pw.Close()
+			logger.Log.Info("This is the logged request:",
+				zap.String("body", string(body)))
+		}()
+
 		h.ServeHTTP(&lw, r)
 
 		duration := time.Since(start)
@@ -95,12 +106,8 @@ func (h *HandlersServer) newRouter() http.Handler {
 	mux.Post("/update/", h.mainPageJson)
 	mux.Post("/update/{type}/{name}/{value}", h.mainPostPagePlain)
 	mux.Post("/update/{type}/", h.mainPageFoundErrors)
-	//mux.Post("/update/gauge/", h.mainPageNotFound)
-	//mux.Post("/update/counter/", h.mainPageNotFound)
-
 	mux.Post("/*", h.mainPageError)
 	mux.Get("/value/{type}/{name}", h.mainPageGetPlain)
-	//mux.Get("/value/counter/{name}", h.mainPageGetCounter)
 	mux.Get("/value/", h.mainPageGetJson)
 	mux.Get("/", h.mainPage)
 
