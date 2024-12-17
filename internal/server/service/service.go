@@ -3,16 +3,14 @@ package service
 import (
 	"errors"
 	"fmt"
-	"strconv"
 
+	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository"
 )
 
 type ServerMetricsStorage interface {
-	Update(string, repository.GaugeMetric)
-	Add(string, repository.CounterMetric)
-	GetGauge(string) (repository.GaugeMetric, error)
-	GetCounter(string) (repository.CounterMetric, error)
+	Add(string, repository.ValueMetric) repository.ValueMetric
+	Get(string) (repository.ValueMetric, error)
 	ReadAll(repository.FuncReadAllMetric) error
 }
 
@@ -28,47 +26,80 @@ func NewHandlerStore(store ServerMetricsStorage) *HandlerStore {
 
 var (
 	ErrBadValue = errors.New("invalid value")
+	ErrBadName  = errors.New("no name")
 )
 
-func (h *HandlerStore) RecieveGauge(name string, valstr string) error {
-
-	value, err := strconv.ParseFloat(valstr, 64)
-	if err != nil {
-		return fmt.Errorf("failed %w : %w", ErrBadValue, err)
+func (h *HandlerStore) CheckType(s string) error {
+	_, errKind := repository.GetKind(s)
+	if errKind != nil {
+		return errKind
 	}
-
-	h.store.Update(name, repository.GaugeMetric(value))
 	return nil
 }
 
-func (h *HandlerStore) RecieveCounter(name string, valstr string) error {
-	value, err := strconv.ParseInt(valstr, 10, 64)
-	if err != nil {
-		return fmt.Errorf("failed %w : %w", ErrBadValue, err)
+func (h *HandlerStore) SetValueModel(valModel models.Metrics) (*models.Metrics, error) {
+	kind, errKind := repository.GetKind(valModel.MType)
+	if errKind != nil {
+		return nil, fmt.Errorf("failed %w", errKind)
 	}
-	h.store.Add(name, repository.CounterMetric(value))
+	if valModel.ID == "" {
+		return nil, fmt.Errorf("failed %w", ErrBadName)
+	}
+	val, err := repository.ConvertToValueMetricInt(kind, valModel.Delta, valModel.Value)
+	if err != nil {
+		return nil, fmt.Errorf("failed %w", err)
+	}
+	newval := h.store.Add(valModel.ID, *val)
+
+	valNewModel := new(models.Metrics)
+	valNewModel.ConvertMetricToModel(valModel.ID, newval)
+	return valNewModel, nil
+}
+
+func (h *HandlerStore) GetValueModel(valModel models.Metrics) (*models.Metrics, error) {
+	kind, errKind := repository.GetKind(valModel.MType)
+	if errKind != nil {
+		return nil, fmt.Errorf("failed %w", errKind)
+	}
+	if valModel.ID == "" {
+		return nil, fmt.Errorf("failed %w", ErrBadName)
+	}
+	val, err := h.store.Get(valModel.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed %w", err)
+	}
+	if !val.KindOf(kind) {
+		return nil, fmt.Errorf("failed %w", err)
+	}
+	valNewModel := new(models.Metrics)
+	valNewModel.ConvertMetricToModel(valModel.ID, val)
+	return valNewModel, nil
+}
+
+func (h *HandlerStore) RecievePlainValue(typeVal string, name string, valstr string) error {
+	kind, errKind := repository.GetKind(typeVal)
+	if errKind != nil {
+		return fmt.Errorf("failed %w", errKind)
+	}
+	val, err := repository.ConvertToValueMetric(kind, valstr)
+
+	if err != nil {
+		return fmt.Errorf("failed %w", err)
+	}
+	h.store.Add(name, *val)
 	return nil
 }
 
-func (h *HandlerStore) GetGauge(name string) (string, error) {
-
-	val, err := h.store.GetGauge(name)
-
+func (h *HandlerStore) GetValuePlain(name string, typeVal string) (string, error) {
+	val, err := h.store.Get(name)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed %w", err)
 	}
-	valstr := strconv.FormatFloat(float64(val), 'f', -1, 64)
-	return valstr, nil
-}
-
-func (h *HandlerStore) GetCounter(name string) (string, error) {
-
-	val, err := h.store.GetCounter(name)
-
-	if err != nil {
-		return "", err
+	typeKind, errKind := repository.GetKind(typeVal)
+	if (errKind != nil) || (!val.KindOf(typeKind)) {
+		return "", fmt.Errorf("failed %w", errKind)
 	}
-	valstr := strconv.FormatInt(int64(val), 10)
+	_, valstr := repository.ConvertValueMetricToPlain(val)
 	return valstr, nil
 }
 
@@ -76,9 +107,9 @@ func (h *HandlerStore) GetAllStore() (string, error) {
 
 	var valstr string
 
-	err := h.store.ReadAll(func(typename string, name string, value string) error {
-
-		valstr += (name + " : " + value + "\n")
+	err := h.store.ReadAll(func(key string, val repository.ValueMetric) error {
+		_, value := repository.ConvertValueMetricToPlain(val)
+		valstr += (key + " : " + value + "\n")
 
 		return nil
 	})

@@ -3,12 +3,12 @@ package service
 import (
 	"errors"
 
+	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository"
 )
 
 type AgentMetricsStorage interface {
-	Update(string, repository.GaugeMetric)
-	Add(string, repository.CounterMetric)
+	Add(string, repository.ValueMetric) repository.ValueMetric
 	ReadAllClearCounters(repository.FuncReadAllMetric) error
 }
 
@@ -29,28 +29,32 @@ var (
 )
 
 func (h *HandlerStore) SetGauge(name string, val float64) {
-
-	h.Store.Update(name, repository.GaugeMetric(val))
-
+	valMetric := repository.ConvertToFloatValueMetric(val)
+	h.Store.Add(name, *valMetric)
 }
 
-func (h *HandlerStore) SetGaugeFloat(name string, val float64) {
-
-	h.Store.Update(name, repository.GaugeMetric(val))
-
+func (h *HandlerStore) SetCounter(name string, val int64) {
+	valMetric := repository.ConvertToIntValueMetric(val)
+	h.Store.Add(name, *valMetric)
 }
 
-func (h *HandlerStore) SetCounter(name string, val uint64) {
+func (h *HandlerStore) RangeMetricsPlain(prog func(string) error) error {
 
-	h.Store.Add(name, repository.CounterMetric(val))
-
-}
-
-func (h *HandlerStore) RangeMetrics(prog func(string) error) error {
-
-	err := h.Store.ReadAllClearCounters(func(typename string, name string, value string) error {
-		data := typename + "/" + name + "/" + value
+	err := h.Store.ReadAllClearCounters(func(key string, val repository.ValueMetric) error {
+		typename, valstr := repository.ConvertValueMetricToPlain(val)
+		data := typename + "/" + key + "/" + valstr
 		return prog(data)
+	})
+
+	return err
+}
+
+func (h *HandlerStore) RangeMetricsJson(prog func(*models.Metrics) error) error {
+
+	err := h.Store.ReadAllClearCounters(func(key string, val repository.ValueMetric) error {
+		valNewModel := new(models.Metrics)
+		valNewModel.ConvertMetricToModel(key, val)
+		return prog(valNewModel)
 	})
 
 	return err

@@ -2,12 +2,10 @@ package repository
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"sync"
 )
-
-type GaugeMetric float64
-type CounterMetric int64
 
 type valueKind int
 
@@ -17,20 +15,159 @@ const (
 	kindFloat64
 )
 
-type valueMetric struct {
+type ValueMetric struct {
 	kind       valueKind
-	valueFloat GaugeMetric
-	valueInt   CounterMetric
+	valueFloat float64
+	valueInt   int64
 }
 
-type FuncReadAllMetric func(typename string, name string, value string) error
+type FuncReadAllMetric func(name string, val ValueMetric) error
 
 var (
 	ErrNotFoundName = errors.New("not found name")
 )
 
+func (v *ValueMetric) GetTypeStr() string {
+	return GetKindStr(v.kind)
+}
+
+func (v *ValueMetric) ValueInt() *int64 {
+	if v.kind == kindInt64 {
+		return &v.valueInt
+	}
+	return nil
+}
+
+func (v *ValueMetric) ValueFloat() *float64 {
+	if v.kind == kindFloat64 {
+		return &v.valueFloat
+	}
+	return nil
+}
+
+func (v *ValueMetric) doUpdate(val ValueMetric) {
+	switch v.kind {
+	case kindFloat64:
+		v.valueFloat = val.valueFloat
+	case kindInt64:
+		v.valueInt += val.valueInt
+	default:
+	}
+}
+
+func (v *ValueMetric) doRead() ValueMetric {
+	switch v.kind {
+	case kindInt64:
+		v.valueInt = 0
+	default:
+	}
+	return *v
+}
+
+func (v *ValueMetric) KindOf(k valueKind) bool {
+	return v.kind == k
+}
+
+var (
+	ErrBadTypeValue = errors.New("invalid typeValue")
+	ErrBadValue     = errors.New("error value conversion")
+	ErrBadKindType  = errors.New("error kind type")
+)
+
+func GetKind(typeValue string) (valueKind, error) {
+	switch typeValue {
+	case "gauge":
+		return kindFloat64, nil
+	case "counter":
+		return kindInt64, nil
+	default:
+		return kindBadEmpty, ErrBadTypeValue
+	}
+}
+
+func GetKindStr(typeValue valueKind) string {
+	switch typeValue {
+	case kindFloat64:
+		return "gauge"
+	case kindInt64:
+		return "counter"
+	default:
+		return ""
+	}
+}
+
+func ConvertToFloatValueMetric(valF float64) *ValueMetric {
+	val := new(ValueMetric)
+	val.kind = kindFloat64
+	val.valueFloat = valF
+	return val
+}
+
+func ConvertToIntValueMetric(valI int64) *ValueMetric {
+	val := new(ValueMetric)
+	val.kind = kindInt64
+	val.valueInt = valI
+	return val
+}
+
+func ConvertToValueMetricInt(kind valueKind, delta *int64, value *float64) (*ValueMetric, error) {
+	val := new(ValueMetric)
+	val.kind = kind
+	var err error
+	switch kind {
+	case kindFloat64:
+		if value == nil {
+			return nil, fmt.Errorf("failed %w : %w", ErrBadValue, err)
+		}
+		val.valueFloat = *value
+
+	case kindInt64:
+		if delta == nil {
+			return nil, fmt.Errorf("failed %w : %w", ErrBadValue, err)
+		}
+		val.valueInt = *delta
+
+	default:
+		return nil, fmt.Errorf("failed %w : %w", ErrBadValue, ErrBadKindType)
+	}
+	return val, nil
+}
+
+func ConvertToValueMetric(kind valueKind, valstr string) (*ValueMetric, error) {
+	val := new(ValueMetric)
+	val.kind = kind
+	var err error
+	switch kind {
+	case kindFloat64:
+		val.valueFloat, err = strconv.ParseFloat(valstr, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed %w : %w", ErrBadValue, err)
+		}
+
+	case kindInt64:
+		val.valueInt, err = strconv.ParseInt(valstr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed %w : %w", ErrBadValue, err)
+		}
+
+	default:
+		return nil, fmt.Errorf("failed %w : %w", ErrBadValue, ErrBadKindType)
+	}
+	return val, nil
+}
+
+func ConvertValueMetricToPlain(val ValueMetric) (string, string) {
+	switch val.kind {
+	case kindFloat64:
+		return GetKindStr(val.kind), strconv.FormatFloat(val.valueFloat, 'f', -1, 64)
+	case kindInt64:
+		return GetKindStr(val.kind), strconv.FormatInt(val.valueInt, 10)
+	}
+	return "", ""
+}
+
 type MemStorage struct {
-	values map[string]valueMetric
+	values map[string]ValueMetric
 }
 
 type MemStorageMux struct {
@@ -38,65 +175,33 @@ type MemStorageMux struct {
 	mux   *sync.Mutex
 }
 
-func (storage *MemStorage) Update(name string, val GaugeMetric) {
+func (storage *MemStorage) Add(name string, val ValueMetric) ValueMetric {
 	if entry, ok := storage.values[name]; ok {
-		entry.kind = kindFloat64
-		entry.valueFloat = val
+		entry.doUpdate(val)
 		storage.values[name] = entry
-	} else {
-		storage.values[name] = valueMetric{kind: kindFloat64, valueFloat: val}
+		return entry
 	}
+	storage.values[name] = val
+	return val
 }
 
-func (storage *MemStorage) Add(name string, val CounterMetric) {
+func (storage *MemStorage) Get(name string) (ValueMetric, error) {
 	if entry, ok := storage.values[name]; ok {
-		entry.kind = kindInt64
-		entry.valueInt += val
-		storage.values[name] = entry
-	} else {
-		storage.values[name] = valueMetric{kind: kindInt64, valueInt: val}
+		return entry, nil
 	}
-}
-func (storage *MemStorage) GetCounter(name string) (CounterMetric, error) {
-	if entry, ok := storage.values[name]; ok {
-		if entry.kind == kindInt64 {
-			return entry.valueInt, nil
-		}
-	}
-	return 0, ErrNotFoundName
+	return *new(ValueMetric), ErrNotFoundName
 }
 
-func (storage *MemStorage) GetGauge(name string) (GaugeMetric, error) {
-	if entry, ok := storage.values[name]; ok {
-		if entry.kind == kindFloat64 {
-			return entry.valueFloat, nil
-		}
-	}
-	return 0, ErrNotFoundName
-}
-
-func (storage *MemStorageMux) Update(name string, val GaugeMetric) {
+func (storage *MemStorageMux) Add(name string, val ValueMetric) ValueMetric {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	storage.store.Update(name, val)
+	return storage.store.Add(name, val)
 }
 
-func (storage *MemStorageMux) Add(name string, val CounterMetric) {
+func (storage *MemStorageMux) Get(name string) (ValueMetric, error) {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	storage.store.Add(name, val)
-}
-
-func (storage *MemStorageMux) GetCounter(name string) (CounterMetric, error) {
-	storage.mux.Lock()
-	defer storage.mux.Unlock()
-	return storage.store.GetCounter(name)
-}
-
-func (storage *MemStorageMux) GetGauge(name string) (GaugeMetric, error) {
-	storage.mux.Lock()
-	defer storage.mux.Unlock()
-	return storage.store.GetGauge(name)
+	return storage.store.Get(name)
 }
 
 func (storage *MemStorageMux) ReadAll(prog FuncReadAllMetric) error {
@@ -110,46 +215,19 @@ func (storage *MemStorageMux) ReadAllClearCounters(prog FuncReadAllMetric) error
 	return storage.store.ReadAllClearCounters(prog)
 }
 func (storage *MemStorage) ReadAllClearCounters(prog FuncReadAllMetric) error {
-	for name, val := range storage.values {
-		var valstr string
-		var ty string
-		switch val.kind {
-		case kindFloat64:
-			valstr = strconv.FormatFloat(float64(val.valueFloat), 'f', -1, 64)
-			ty = "gauge"
-		case kindInt64:
-			valstr = strconv.FormatInt(int64(val.valueInt), 10)
-			ty = "counter"
-		default:
-			continue
-		}
-		err := prog(ty, name, valstr)
+	for name, entry := range storage.values {
+		err := prog(name, entry)
 		if err != nil {
 			return err
 		}
-		if val.kind == kindInt64 {
-			val.valueInt = 0
-			storage.values[name] = val
-		}
+		storage.values[name] = entry.doRead()
 	}
 	return nil
 }
 
 func (storage *MemStorage) ReadAll(prog FuncReadAllMetric) error {
-	for name, val := range storage.values {
-		var valstr string
-		var ty string
-		switch val.kind {
-		case kindFloat64:
-			valstr = strconv.FormatFloat(float64(val.valueFloat), 'f', -1, 64)
-			ty = "gauge"
-		case kindInt64:
-			valstr = strconv.FormatInt(int64(val.valueInt), 10)
-			ty = "counter"
-		default:
-			continue
-		}
-		err := prog(ty, name, valstr)
+	for name, entry := range storage.values {
+		err := prog(name, entry)
 		if err != nil {
 			return err
 		}
@@ -159,7 +237,7 @@ func (storage *MemStorage) ReadAll(prog FuncReadAllMetric) error {
 
 func NewStore() *MemStorage {
 	p := new(MemStorage)
-	p.values = make(map[string]valueMetric)
+	p.values = make(map[string]ValueMetric)
 	return p
 }
 
