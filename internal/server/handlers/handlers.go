@@ -1,12 +1,19 @@
 package handlers
 
 import (
+	"errors"
 	"io"
 	"net/http"
+	"time"
 
+	"github.com/4aleksei/metricscum/internal/common/logger"
+	"github.com/4aleksei/metricscum/internal/common/models"
+	"github.com/4aleksei/metricscum/internal/common/repository"
 	"github.com/4aleksei/metricscum/internal/server/config"
 	"github.com/4aleksei/metricscum/internal/server/service"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"go.uber.org/zap"
 )
 
 type HandlersServer struct {
@@ -30,92 +37,222 @@ func (h *HandlersServer) Serve() error {
 	return h.srv.ListenAndServe()
 }
 
+type (
+	responseData struct {
+		status int
+		size   int
+	}
+	loggingResponseWriter struct {
+		http.ResponseWriter
+		responseData *responseData
+	}
+)
+
+func (r *loggingResponseWriter) Write(b []byte) (int, error) {
+	size, err := r.ResponseWriter.Write(b)
+	r.responseData.size += size
+	return size, err
+}
+
+func (r *loggingResponseWriter) WriteHeader(statusCode int) {
+	r.ResponseWriter.WriteHeader(statusCode)
+	r.responseData.status = statusCode
+}
+
+func WithLogging(h http.Handler) http.Handler {
+	logFn := func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		responseData := &responseData{
+			status: 0,
+			size:   0,
+		}
+
+		lw := loggingResponseWriter{
+			ResponseWriter: w,
+			responseData:   responseData,
+		}
+
+		pr, pw := io.Pipe()
+		tee := io.TeeReader(r.Body, pw)
+		r.Body = pr
+		go func() {
+			body, _ := io.ReadAll(tee)
+			defer pw.Close()
+			logger.Log.Info("This is the logged request:",
+				zap.String("body", string(body)))
+		}()
+
+		h.ServeHTTP(&lw, r)
+
+		duration := time.Since(start)
+
+		logger.Log.Info("got incoming HTTP request",
+			zap.String("uri", r.RequestURI),
+			zap.String("method", r.Method),
+			zap.Duration("duration", duration),
+			zap.Int("resp_status", responseData.status),
+			zap.Int("resp_size", responseData.size))
+	}
+	return http.HandlerFunc(logFn)
+}
+
 func (h *HandlersServer) newRouter() http.Handler {
 	mux := chi.NewRouter()
 
-	mux.Post("/update/gauge/{name}/{value}", h.mainPageGauge)
-	mux.Post("/update/counter/{name}/{value}", h.mainPageCounter)
-	mux.Post("/update/gauge/", h.mainPageNotFound)
-	mux.Post("/update/counter/", h.mainPageNotFound)
-	mux.Post("/*", h.mainPageError)
+	mux.Use(WithLogging)
+	mux.Use(middleware.Recoverer)
 
-	mux.Get("/value/gauge/{name}", h.mainPageGetGauge)
-	mux.Get("/value/counter/{name}", h.mainPageGetCounter)
-	mux.Get("/value/*", h.mainPageError)
+	mux.Post("/update/", h.mainPageJSON)
+	mux.Post("/update/{type}/{name}/{value}", h.mainPostPagePlain)
+	mux.Post("/update/{type}/", h.mainPageFoundErrors)
+	mux.Post("/*", h.mainPageError)
+	mux.Get("/value/{type}/{name}", h.mainPageGetPlain)
+	mux.Post("/value/", h.mainPageGetJSON)
 	mux.Get("/", h.mainPage)
 
 	return mux
 }
 
-func (h *HandlersServer) mainPageError(res http.ResponseWriter, req *http.Request) {
+func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request) {
 
+	if req.Header.Get("Content-Type") != "application/json" {
+		http.Error(res, "Bad type!", http.StatusBadRequest)
+		return
+	}
+
+	var JSONstr models.Metrics
+	if err := JSONstr.JSONDecode(req.Body); err != nil {
+		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	val, err := h.store.SetValueModel(JSONstr)
+
+	if err != nil {
+		if errors.Is(err, service.ErrBadName) {
+			http.Error(res, "Invalid request!", http.StatusNotFound)
+			return
+		}
+		http.Error(res, "Invalid request!", http.StatusBadRequest)
+
+		return
+	}
+
+	buf, err := val.JSONEncode()
+	if err != nil {
+		logger.Log.Debug("error encoding response", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Add("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	io.WriteString(res, buf.String())
+}
+
+func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Request) {
+
+	if req.Header.Get("Content-Type") != "application/json" {
+		http.Error(res, "Bad type!", http.StatusBadRequest)
+		return
+	}
+
+	var JSONstr models.Metrics
+	if err := JSONstr.JSONDecode(req.Body); err != nil {
+		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	val, err := h.store.GetValueModel(JSONstr)
+
+	if err != nil {
+		if errors.Is(err, service.ErrBadName) || errors.Is(err, repository.ErrNotFoundName) {
+			http.Error(res, "Invalid request!", http.StatusNotFound)
+			return
+		}
+		http.Error(res, "Invalid request!", http.StatusBadRequest)
+
+		return
+	}
+
+	buf, err := val.JSONEncode()
+	if err != nil {
+		logger.Log.Debug("error encoding response", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Add("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	io.WriteString(res, buf.String())
+
+}
+
+func (h *HandlersServer) mainPageError(res http.ResponseWriter, req *http.Request) {
 	http.Error(res, "Bad request", http.StatusBadRequest)
 }
 
-func (h *HandlersServer) mainPageNotFound(res http.ResponseWriter, req *http.Request) {
-
+func (h *HandlersServer) mainPageFoundErrors(res http.ResponseWriter, req *http.Request) {
+	typeVal := chi.URLParam(req, "type")
+	errKind := h.store.CheckType(typeVal)
+	if errKind != nil {
+		http.Error(res, "Bad request", http.StatusBadRequest)
+		return
+	}
 	http.Error(res, "Not Found", http.StatusNotFound)
 }
 
-func (h *HandlersServer) mainPageGauge(res http.ResponseWriter, req *http.Request) {
+func (h *HandlersServer) mainPostPagePlain(res http.ResponseWriter, req *http.Request) {
 
+	typeVal := chi.URLParam(req, "type")
 	name := chi.URLParam(req, "name")
 	value := chi.URLParam(req, "value")
 
-	if value == "" {
-		http.Error(res, "Bad data!", http.StatusNotFound)
-		return
-	}
-
-	if name == "" {
+	if typeVal == "" {
 		http.Error(res, "Bad type!", http.StatusBadRequest)
 		return
 	}
-
-	err := h.store.RecieveGauge(name, value)
-
-	if err != nil {
-		http.Error(res, "Bad gauge value!", http.StatusBadRequest)
+	if name == "" {
+		http.Error(res, "Bad name!", http.StatusNotFound)
 		return
 	}
+
+	if value == "" {
+		http.Error(res, "Bad data!", http.StatusBadRequest)
+		return
+	}
+
+	err := h.store.RecievePlainValue(typeVal, name, value)
+
+	if err != nil {
+		http.Error(res, "Bad value!", http.StatusBadRequest)
+		return
+	}
+
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 
 }
 
-func (h *HandlersServer) mainPageCounter(res http.ResponseWriter, req *http.Request) {
+func (h *HandlersServer) mainPageGetPlain(res http.ResponseWriter, req *http.Request) {
 
+	typeVal := chi.URLParam(req, "type")
 	name := chi.URLParam(req, "name")
-	value := chi.URLParam(req, "value")
 
-	if value == "" {
-		http.Error(res, "Bad data!", http.StatusNotFound)
-		return
-	}
-
-	if name == "" {
+	if typeVal == "" {
 		http.Error(res, "Bad type!", http.StatusBadRequest)
 		return
 	}
-
-	err := h.store.RecieveCounter(name, value)
-
-	if err != nil {
-		http.Error(res, "Bad counter value!", http.StatusBadRequest)
-		return
-	}
-	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
-}
-
-func (h *HandlersServer) mainPageGetGauge(res http.ResponseWriter, req *http.Request) {
-
-	name := chi.URLParam(req, "name")
 
 	if name == "" {
 		http.Error(res, "Bad type!", http.StatusNotFound)
 		return
 	}
 
-	val, err := h.store.GetGauge(name)
+	val, err := h.store.GetValuePlain(name, typeVal)
 
 	if err != nil {
 		http.Error(res, "Not found value!", http.StatusNotFound)
@@ -123,27 +260,7 @@ func (h *HandlersServer) mainPageGetGauge(res http.ResponseWriter, req *http.Req
 	}
 
 	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
-	io.WriteString(res, val)
-
-}
-
-func (h *HandlersServer) mainPageGetCounter(res http.ResponseWriter, req *http.Request) {
-
-	name := chi.URLParam(req, "name")
-
-	if name == "" {
-		http.Error(res, "Bad type!", http.StatusNotFound)
-		return
-	}
-
-	val, err := h.store.GetCounter(name)
-
-	if err != nil {
-		http.Error(res, "Not found value!", http.StatusNotFound)
-		return
-	}
-	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
-
+	res.WriteHeader(http.StatusOK)
 	io.WriteString(res, val)
 
 }
@@ -158,8 +275,9 @@ func (h *HandlersServer) mainPage(res http.ResponseWriter, req *http.Request) {
 			http.Error(res, "Not found value!", http.StatusNotFound)
 			return
 		}
-		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 
+		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+		res.WriteHeader(http.StatusOK)
 		io.WriteString(res, val)
 
 	} else {

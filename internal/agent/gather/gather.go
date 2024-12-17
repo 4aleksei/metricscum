@@ -23,9 +23,7 @@ func NewAppGather(serv *service.HandlerStore, cfg *config.Config) *AppGather {
 }
 
 func (app *AppGather) RunRutine() {
-
 	go app.mainGather()
-
 }
 
 func (app *AppGather) mainGather() {
@@ -66,7 +64,7 @@ func (app *AppGather) mainGather() {
 		app.serv.SetGauge("TotalAlloc", float64(m.TotalAlloc))
 
 		app.serv.SetCounter("PollCount", 1)
-		app.serv.SetGaugeFloat("RandomValue", r.Float64())
+		app.serv.SetGauge("RandomValue", r.Float64())
 
 	}
 
