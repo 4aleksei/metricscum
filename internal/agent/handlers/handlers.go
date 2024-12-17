@@ -56,9 +56,9 @@ func (app *App) Run() error {
 		return nil
 	}
 
-	var JsonModelFunc = func(data *models.Metrics) error {
+	var JSONModelFunc = func(data *models.Metrics) error {
 
-		buf, err := data.JsonEncode()
+		buf, err := data.JSONEncode()
 		if err != nil {
 			log.Println(err)
 			//logger.Log.Debug("error encoding response", zap.Error(err))
@@ -84,8 +84,8 @@ func (app *App) Run() error {
 
 		time.Sleep(time.Duration(app.cfg.ReportInterval) * time.Second)
 
-		if app.cfg.ContentJson == 1 {
-			app.serv.RangeMetricsJson(JsonModelFunc)
+		if app.cfg.ContentJSON == 1 {
+			app.serv.RangeMetricsJSON(JSONModelFunc)
 		} else {
 			app.serv.RangeMetricsPlain(plainTxtFunc)
 		}

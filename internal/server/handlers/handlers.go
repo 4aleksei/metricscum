@@ -103,32 +103,32 @@ func (h *HandlersServer) newRouter() http.Handler {
 	mux.Use(WithLogging)
 	mux.Use(middleware.Recoverer)
 
-	mux.Post("/update/", h.mainPageJson)
+	mux.Post("/update/", h.mainPageJSON)
 	mux.Post("/update/{type}/{name}/{value}", h.mainPostPagePlain)
 	mux.Post("/update/{type}/", h.mainPageFoundErrors)
 	mux.Post("/*", h.mainPageError)
 	mux.Get("/value/{type}/{name}", h.mainPageGetPlain)
-	mux.Post("/value/", h.mainPageGetJson)
+	mux.Post("/value/", h.mainPageGetJSON)
 	mux.Get("/", h.mainPage)
 
 	return mux
 }
 
-func (h *HandlersServer) mainPageJson(res http.ResponseWriter, req *http.Request) {
+func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request) {
 
 	if req.Header.Get("Content-Type") != "application/json" {
 		http.Error(res, "Bad type!", http.StatusBadRequest)
 		return
 	}
 
-	var jsonstr models.Metrics
-	if err := jsonstr.JsonDecode(req.Body); err != nil {
+	var JSONstr models.Metrics
+	if err := JSONstr.JSONDecode(req.Body); err != nil {
 		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	val, err := h.store.SetValueModel(jsonstr)
+	val, err := h.store.SetValueModel(JSONstr)
 
 	if err != nil {
 		if errors.Is(err, service.ErrBadName) {
@@ -140,7 +140,7 @@ func (h *HandlersServer) mainPageJson(res http.ResponseWriter, req *http.Request
 		return
 	}
 
-	buf, err := val.JsonEncode()
+	buf, err := val.JSONEncode()
 	if err != nil {
 		logger.Log.Debug("error encoding response", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
@@ -152,21 +152,21 @@ func (h *HandlersServer) mainPageJson(res http.ResponseWriter, req *http.Request
 	io.WriteString(res, buf.String())
 }
 
-func (h *HandlersServer) mainPageGetJson(res http.ResponseWriter, req *http.Request) {
+func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Request) {
 
 	if req.Header.Get("Content-Type") != "application/json" {
 		http.Error(res, "Bad type!", http.StatusBadRequest)
 		return
 	}
 
-	var jsonstr models.Metrics
-	if err := jsonstr.JsonDecode(req.Body); err != nil {
+	var JSONstr models.Metrics
+	if err := JSONstr.JSONDecode(req.Body); err != nil {
 		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	val, err := h.store.GetValueModel(jsonstr)
+	val, err := h.store.GetValueModel(JSONstr)
 
 	if err != nil {
 		if errors.Is(err, service.ErrBadName) || errors.Is(err, repository.ErrNotFoundName) {
@@ -178,7 +178,7 @@ func (h *HandlersServer) mainPageGetJson(res http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	buf, err := val.JsonEncode()
+	buf, err := val.JSONEncode()
 	if err != nil {
 		logger.Log.Debug("error encoding response", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)

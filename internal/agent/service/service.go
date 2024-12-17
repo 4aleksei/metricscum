@@ -49,7 +49,7 @@ func (h *HandlerStore) RangeMetricsPlain(prog func(string) error) error {
 	return err
 }
 
-func (h *HandlerStore) RangeMetricsJson(prog func(*models.Metrics) error) error {
+func (h *HandlerStore) RangeMetricsJSON(prog func(*models.Metrics) error) error {
 
 	err := h.Store.ReadAllClearCounters(func(key string, val repository.ValueMetric) error {
 		valNewModel := new(models.Metrics)

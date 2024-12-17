@@ -22,13 +22,13 @@ func (valModels *Metrics) ConvertMetricToModel(name string, valMetrics repositor
 	valModels.Value = valMetrics.ValueFloat()
 }
 
-func (valModels *Metrics) JsonDecode(body io.ReadCloser) error {
+func (valModels *Metrics) JSONDecode(body io.ReadCloser) error {
 	dec := json.NewDecoder(body)
 	err := dec.Decode(valModels)
 	return err
 }
 
-func (valModels *Metrics) JsonEncode() (*bytes.Buffer, error) {
+func (valModels *Metrics) JSONEncode() (*bytes.Buffer, error) {
 	buf := new(bytes.Buffer)
 	enc := json.NewEncoder(buf)
 	err := enc.Encode(valModels)

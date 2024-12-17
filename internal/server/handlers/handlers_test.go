@@ -94,7 +94,7 @@ func Test_handlers_mainPagePlain(t *testing.T) {
 	}
 }
 
-func Test_handlers_mainPageJson(t *testing.T) {
+func Test_handlers_mainPageJSON(t *testing.T) {
 
 	type want struct {
 		contentType string
@@ -116,10 +116,10 @@ func Test_handlers_mainPageJson(t *testing.T) {
 
 	/*
 	   type Metrics struct {
-	      ID    string   `json:"id"`              // имя метрики
-	      MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
-	      Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
-	      Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+	      ID    string   `JSON:"id"`              // имя метрики
+	      MType string   `JSON:"type"`            // параметр, принимающий значение gauge или counter
+	      Delta *int64   `JSON:"delta,omitempty"` // значение метрики в случае передачи counter
+	      Value *float64 `JSON:"value,omitempty"` // значение метрики в случае передачи gauge
 	   }
 	*/
 
@@ -128,10 +128,10 @@ func Test_handlers_mainPageJson(t *testing.T) {
 		req  request
 		want want
 	}{
-		{name: "Json Test No1", req: request{method: http.MethodPost, url: "/update/", body: " {\"id\":\"test1\" , \"type\":\"counter\" , \"delta\": 100 }  ", contentType: "application/json"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: " {\"id\":\"test1\" , \"type\":\"counter\" , \"delta\":100 }  "}},
-		{name: "Json Test No2", req: request{method: http.MethodPost, url: "/update/", body: " {\"id\":\"\" , \"type\":\"counter\" , \"delta\": 100 }  ", contentType: "application/json"}, want: want{statusCode: http.StatusNotFound, contentType: "", body: ""}},
-		{name: "Json Test No3", req: request{method: http.MethodPost, url: "/value/", body: " {\"id\":\"test1\" , \"type\":\"counter\" }  ", contentType: "application/json"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: " {\"id\":\"test1\" , \"type\":\"counter\" , \"delta\":100 }  "}},
-		{name: "Json Test No4", req: request{method: http.MethodPost, url: "/value/", body: " {\"id\":\"test2\" , \"type\":\"counter\" }  ", contentType: "application/json"}, want: want{statusCode: http.StatusNotFound, contentType: "", body: ""}},
+		{name: "JSON Test No1", req: request{method: http.MethodPost, url: "/update/", body: " {\"id\":\"test1\" , \"type\":\"counter\" , \"delta\": 100 }  ", contentType: "application/json"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: " {\"id\":\"test1\" , \"type\":\"counter\" , \"delta\":100 }  "}},
+		{name: "JSON Test No2", req: request{method: http.MethodPost, url: "/update/", body: " {\"id\":\"\" , \"type\":\"counter\" , \"delta\": 100 }  ", contentType: "application/json"}, want: want{statusCode: http.StatusNotFound, contentType: "", body: ""}},
+		{name: "JSON Test No3", req: request{method: http.MethodPost, url: "/value/", body: " {\"id\":\"test1\" , \"type\":\"counter\" }  ", contentType: "application/json"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: " {\"id\":\"test1\" , \"type\":\"counter\" , \"delta\":100 }  "}},
+		{name: "JSON Test No4", req: request{method: http.MethodPost, url: "/value/", body: " {\"id\":\"test2\" , \"type\":\"counter\" }  ", contentType: "application/json"}, want: want{statusCode: http.StatusNotFound, contentType: "", body: ""}},
 
 		//{name: "Test No3", req: request{method: http.MethodPost, url: "/update/"}, want: want{statusCode: http.StatusNotFound, contentType: "text/plain; charset=utf-8"}},
 		//{name: "Test No4", req: request{method: http.MethodPost, url: "/update/"}, want: want{statusCode: http.StatusNotFound, contentType: "text/plain; charset=utf-8"}},
