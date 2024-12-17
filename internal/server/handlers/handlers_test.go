@@ -40,6 +40,7 @@ func Test_handlers_mainPagePlain(t *testing.T) {
 	type want struct {
 		contentType string
 		statusCode  int
+		body        string
 	}
 	type request struct {
 		method string
@@ -68,17 +69,24 @@ func Test_handlers_mainPagePlain(t *testing.T) {
 		{name: "Test No7", req: request{method: http.MethodPost, url: "/update/counter//10"}, want: want{statusCode: http.StatusNotFound, contentType: "text/plain; charset=utf-8"}},
 		{name: "Test No8", req: request{method: http.MethodPost, url: "/update/gauge/test3/dfdfs"}, want: want{statusCode: http.StatusBadRequest, contentType: "text/plain; charset=utf-8"}},
 		{name: "Test No9", req: request{method: http.MethodPost, url: "/update/counter/test4/5454.3434"}, want: want{statusCode: http.StatusBadRequest, contentType: "text/plain; charset=utf-8"}},
+		{name: "Test No10", req: request{method: http.MethodPost, url: "/update/counter/testreal/10"}, want: want{statusCode: http.StatusOK, contentType: "text/plain; charset=utf-8"}},
+
+		{name: "Test No11", req: request{method: http.MethodGet, url: "/value/counter/testreal"}, want: want{statusCode: http.StatusOK, contentType: "text/plain; charset=utf-8", body: "10"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			resp, _ := testRequest(t, ts, tt.req.method, tt.req.url, "", "")
+			resp, respBody := testRequest(t, ts, tt.req.method, tt.req.url, "", "")
 
 			assert.Equal(t, tt.want.statusCode, resp.StatusCode)
 
 			if tt.want.contentType != "" {
 				assert.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
+			}
+
+			if tt.want.body != "" {
+				assert.Equal(t, tt.want.body, respBody)
 			}
 
 			resp.Body.Close()

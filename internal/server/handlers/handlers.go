@@ -252,7 +252,7 @@ func (h *HandlersServer) mainPageGetPlain(res http.ResponseWriter, req *http.Req
 		return
 	}
 
-	val, err := h.store.GetValuePlain(typeVal, name)
+	val, err := h.store.GetValuePlain(name, typeVal)
 
 	if err != nil {
 		http.Error(res, "Not found value!", http.StatusNotFound)
