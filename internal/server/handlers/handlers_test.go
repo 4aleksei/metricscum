@@ -130,8 +130,8 @@ func Test_handlers_mainPageJson(t *testing.T) {
 	}{
 		{name: "Json Test No1", req: request{method: http.MethodPost, url: "/update/", body: " {\"id\":\"test1\" , \"type\":\"counter\" , \"delta\": 100 }  ", contentType: "application/json"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: " {\"id\":\"test1\" , \"type\":\"counter\" , \"delta\":100 }  "}},
 		{name: "Json Test No2", req: request{method: http.MethodPost, url: "/update/", body: " {\"id\":\"\" , \"type\":\"counter\" , \"delta\": 100 }  ", contentType: "application/json"}, want: want{statusCode: http.StatusNotFound, contentType: "", body: ""}},
-		{name: "Json Test No3", req: request{method: http.MethodGet, url: "/value/", body: " {\"id\":\"test1\" , \"type\":\"counter\" }  ", contentType: "application/json"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: " {\"id\":\"test1\" , \"type\":\"counter\" , \"delta\":100 }  "}},
-		{name: "Json Test No4", req: request{method: http.MethodGet, url: "/value/", body: " {\"id\":\"test2\" , \"type\":\"counter\" }  ", contentType: "application/json"}, want: want{statusCode: http.StatusNotFound, contentType: "", body: ""}},
+		{name: "Json Test No3", req: request{method: http.MethodPost, url: "/value/", body: " {\"id\":\"test1\" , \"type\":\"counter\" }  ", contentType: "application/json"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: " {\"id\":\"test1\" , \"type\":\"counter\" , \"delta\":100 }  "}},
+		{name: "Json Test No4", req: request{method: http.MethodPost, url: "/value/", body: " {\"id\":\"test2\" , \"type\":\"counter\" }  ", contentType: "application/json"}, want: want{statusCode: http.StatusNotFound, contentType: "", body: ""}},
 
 		//{name: "Test No3", req: request{method: http.MethodPost, url: "/update/"}, want: want{statusCode: http.StatusNotFound, contentType: "text/plain; charset=utf-8"}},
 		//{name: "Test No4", req: request{method: http.MethodPost, url: "/update/"}, want: want{statusCode: http.StatusNotFound, contentType: "text/plain; charset=utf-8"}},

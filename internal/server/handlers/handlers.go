@@ -108,7 +108,7 @@ func (h *HandlersServer) newRouter() http.Handler {
 	mux.Post("/update/{type}/", h.mainPageFoundErrors)
 	mux.Post("/*", h.mainPageError)
 	mux.Get("/value/{type}/{name}", h.mainPageGetPlain)
-	mux.Get("/value/", h.mainPageGetJson)
+	mux.Post("/value/", h.mainPageGetJson)
 	mux.Get("/", h.mainPage)
 
 	return mux
