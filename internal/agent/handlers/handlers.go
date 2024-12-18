@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"bytes"
+	"compress/gzip"
 	"io"
 	"log"
 	"net"
@@ -46,25 +48,34 @@ func (app *App) Run() error {
 			return err
 		}
 		defer resp.Body.Close()
-
 		_, errcoppy := io.Copy(io.Discard, resp.Body)
 		if errcoppy != nil {
 			log.Println(err)
 			return err
 		}
-
 		return nil
 	}
 
 	var JSONModelFunc = func(data *models.Metrics) error {
+		var requestBody bytes.Buffer
+		gz := gzip.NewWriter(&requestBody)
+		buf, err := data.JSONEncodeBytes(&requestBody)
+		gz.Close()
 
-		buf, err := data.JSONEncode()
 		if err != nil {
 			log.Println(err)
-			//logger.Log.Debug("error encoding response", zap.Error(err))
 			return err
 		}
-		resp, err := client.Post(server, "application/json", buf)
+
+		req, err := http.NewRequest("POST", server, buf)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		req.Header.Set("Accept-Encoding", "gzip")
+		req.Header.Set("Content-Encoding", "gzip")
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := client.Do(req)
 		if err != nil {
 			log.Println(err)
 			return err
@@ -76,14 +87,11 @@ func (app *App) Run() error {
 			log.Println(err)
 			return err
 		}
-
 		return nil
 	}
 
 	for {
-
 		time.Sleep(time.Duration(app.cfg.ReportInterval) * time.Second)
-
 		if app.cfg.ContentJSON == 1 {
 			app.serv.RangeMetricsJSON(JSONModelFunc)
 		} else {

@@ -35,7 +35,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 	return resp, string(respBody)
 }
 
-func Test_handlers_mainPagePlain(t *testing.T) {
+func Test_handlers_mainHTTPPlain(t *testing.T) {
 
 	type want struct {
 		contentType string
@@ -94,7 +94,7 @@ func Test_handlers_mainPagePlain(t *testing.T) {
 	}
 }
 
-func Test_handlers_mainPageJSON(t *testing.T) {
+func Test_handlers_mainHTTPJSON(t *testing.T) {
 
 	type want struct {
 		contentType string
@@ -113,15 +113,6 @@ func Test_handlers_mainPageJSON(t *testing.T) {
 
 	ts := httptest.NewServer(h.newRouter())
 	defer ts.Close()
-
-	/*
-	   type Metrics struct {
-	      ID    string   `JSON:"id"`              // имя метрики
-	      MType string   `JSON:"type"`            // параметр, принимающий значение gauge или counter
-	      Delta *int64   `JSON:"delta,omitempty"` // значение метрики в случае передачи counter
-	      Value *float64 `JSON:"value,omitempty"` // значение метрики в случае передачи gauge
-	   }
-	*/
 
 	tests := []struct {
 		name string

@@ -30,6 +30,10 @@ func (valModels *Metrics) JSONDecode(body io.ReadCloser) error {
 
 func (valModels *Metrics) JSONEncode() (*bytes.Buffer, error) {
 	buf := new(bytes.Buffer)
+	return valModels.JSONEncodeBytes(buf)
+}
+
+func (valModels *Metrics) JSONEncodeBytes(buf *bytes.Buffer) (*bytes.Buffer, error) {
 	enc := json.NewEncoder(buf)
 	err := enc.Encode(valModels)
 	return buf, err

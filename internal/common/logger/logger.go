@@ -24,14 +24,3 @@ func Initialize(level string) error {
 	Log = zl
 	return nil
 }
-
-/*func RequestLogger(h http.HandlerFunc) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		Log.Debug("got incoming HTTP request",
-			zap.String("method", r.Method),
-			zap.String("path", r.URL.Path),
-		)
-		h(w, r)
-	})
-}
-*/
