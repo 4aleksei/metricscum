@@ -1,7 +1,6 @@
 package models
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 
@@ -28,13 +27,8 @@ func (valModels *Metrics) JSONDecode(body io.ReadCloser) error {
 	return err
 }
 
-func (valModels *Metrics) JSONEncode() (*bytes.Buffer, error) {
-	buf := new(bytes.Buffer)
-	return valModels.JSONEncodeBytes(buf)
-}
-
-func (valModels *Metrics) JSONEncodeBytes(buf *bytes.Buffer) (*bytes.Buffer, error) {
-	enc := json.NewEncoder(buf)
+func (valModels *Metrics) JSONEncodeBytes(w io.Writer) error {
+	enc := json.NewEncoder(w)
 	err := enc.Encode(valModels)
-	return buf, err
+	return err
 }

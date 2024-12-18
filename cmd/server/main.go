@@ -20,7 +20,7 @@ func main() {
 func run() error {
 	cfg := config.GetConfig()
 	logger.Initialize(cfg.Level)
-	store := repository.NewStore()
+	store := repository.NewStoreMux()
 	metricsService := service.NewHandlerStore(store)
 
 	server := handlers.NewHandlers(metricsService, cfg)

@@ -5,6 +5,9 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/4aleksei/metricscum/internal/common/logger"
+	"go.uber.org/zap"
 )
 
 type compressWriter struct {
@@ -45,6 +48,7 @@ type compressReader struct {
 
 func newCompressReader(r io.ReadCloser) (*compressReader, error) {
 	zr, err := gzip.NewReader(r)
+
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +59,7 @@ func newCompressReader(r io.ReadCloser) (*compressReader, error) {
 	}, nil
 }
 
-func (c compressReader) Read(p []byte) (n int, err error) {
+func (c *compressReader) Read(p []byte) (n int, err error) {
 	return c.zr.Read(p)
 }
 
@@ -73,6 +77,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		ow := w
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
+
 		if supportsGzip {
 			cw := newCompressWriter(w)
 			ow = cw
@@ -84,6 +89,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		if sendsGzip {
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
+				logger.Log.Debug("cannot decode gzip", zap.Error(err))
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}

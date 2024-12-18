@@ -1,7 +1,6 @@
 package httplogs
 
 import (
-	"io"
 	"net/http"
 	"time"
 
@@ -45,15 +44,15 @@ func WithLogging(next http.Handler) http.Handler {
 			responseData:   responseData,
 		}
 
-		pr, pw := io.Pipe()
-		tee := io.TeeReader(r.Body, pw)
-		r.Body = pr
-		go func() {
-			body, _ := io.ReadAll(tee)
-			defer pw.Close()
-			logger.Log.Info("This is the logged request:",
-				zap.String("body", string(body)))
-		}()
+		/*	pr, pw := io.Pipe()
+			tee := io.TeeReader(r.Body, pw)
+			r.Body = pr
+			go func() {
+				body, _ := io.ReadAll(tee)
+				defer pw.Close()
+				logger.Log.Info("This is the logged request:",
+					zap.String("body", string(body)))
+			}()*/
 
 		next.ServeHTTP(&lw, r)
 
@@ -62,6 +61,10 @@ func WithLogging(next http.Handler) http.Handler {
 		logger.Log.Info("got incoming HTTP request",
 			zap.String("uri", r.RequestURI),
 			zap.String("method", r.Method),
+			zap.String("AcceptEnc", r.Header.Get("Accept-Encoding")),
+			zap.String("ContentEnc", r.Header.Get("Content-Encoding")),
+			zap.String("Accept", r.Header.Get("Accept")),
+			zap.String("ContentType", r.Header.Get("Content-Type")),
 			zap.Duration("duration", duration),
 			zap.Int("resp_status", responseData.status),
 			zap.Int("resp_size", responseData.size))

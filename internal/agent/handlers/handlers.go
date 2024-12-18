@@ -59,7 +59,7 @@ func (app *App) Run() error {
 	var JSONModelFunc = func(data *models.Metrics) error {
 		var requestBody bytes.Buffer
 		gz := gzip.NewWriter(&requestBody)
-		buf, err := data.JSONEncodeBytes(&requestBody)
+		err := data.JSONEncodeBytes(gz)
 		gz.Close()
 
 		if err != nil {
@@ -67,7 +67,7 @@ func (app *App) Run() error {
 			return err
 		}
 
-		req, err := http.NewRequest("POST", server, buf)
+		req, err := http.NewRequest("POST", server, &requestBody)
 		if err != nil {
 			log.Println(err)
 			return err

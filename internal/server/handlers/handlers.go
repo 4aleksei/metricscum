@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net/http"
@@ -82,9 +83,11 @@ func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request
 		return
 	}
 
-	buf, err := val.JSONEncode()
-	if err != nil {
-		logger.Log.Debug("error encoding response", zap.Error(err))
+	var buf bytes.Buffer
+	errson := val.JSONEncodeBytes(io.Writer(&buf))
+
+	if errson != nil {
+		logger.Log.Debug("error encoding response", zap.Error(errson))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -120,9 +123,11 @@ func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	buf, err := val.JSONEncode()
-	if err != nil {
-		logger.Log.Debug("error encoding response", zap.Error(err))
+	var buf bytes.Buffer
+	errson := val.JSONEncodeBytes(io.Writer(&buf))
+
+	if errson != nil {
+		logger.Log.Debug("error encoding response", zap.Error(errson))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -174,7 +179,14 @@ func (h *HandlersServer) mainPostPagePlain(res http.ResponseWriter, req *http.Re
 		return
 	}
 
-	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	switch req.Header.Get("Accept") {
+	case "text/html":
+		res.Header().Add("Content-Type", "text/html")
+
+	default:
+		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+
+	}
 	res.WriteHeader(http.StatusOK)
 
 }
@@ -201,30 +213,38 @@ func (h *HandlersServer) mainPageGetPlain(res http.ResponseWriter, req *http.Req
 		return
 	}
 
-	res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	switch req.Header.Get("Accept") {
+	case "text/html":
+		res.Header().Add("Content-Type", "text/html")
+
+	default:
+		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+
+	}
 	res.WriteHeader(http.StatusOK)
 	io.WriteString(res, val)
 
 }
 
 func (h *HandlersServer) mainPage(res http.ResponseWriter, req *http.Request) {
-
 	if req.URL.String() == "" || req.URL.String() == "/" {
-
 		val, err := h.store.GetAllStore()
-
 		if err != nil {
 			http.Error(res, "Not found value!", http.StatusNotFound)
 			return
 		}
 
-		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
-		res.WriteHeader(http.StatusOK)
-		io.WriteString(res, val)
+		switch req.Header.Get("Accept") {
+		case "text/html":
+			res.Header().Add("Content-Type", "text/html")
 
+		default:
+			res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+
+		}
+		res.WriteHeader(http.StatusOK)
+		res.Write([]byte(val))
 	} else {
 		http.Error(res, "Bad request", http.StatusBadRequest)
-
 	}
-
 }
