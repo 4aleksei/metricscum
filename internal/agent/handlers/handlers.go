@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"bytes"
+	"compress/gzip"
 	"io"
 	"log"
 	"net"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/4aleksei/metricscum/internal/agent/config"
 	"github.com/4aleksei/metricscum/internal/agent/service"
+	"github.com/4aleksei/metricscum/internal/common/models"
 )
 
 type App struct {
@@ -36,28 +39,64 @@ func (app *App) Run() error {
 		Transport: netTransport,
 	}
 	server := "http://" + app.cfg.Address + "/update/"
+
+	var plainTxtFunc = func(data string) error {
+
+		resp, err := client.Post(server+data, "text/plain", nil)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		defer resp.Body.Close()
+		_, errcoppy := io.Copy(io.Discard, resp.Body)
+		if errcoppy != nil {
+			log.Println(err)
+			return err
+		}
+		return nil
+	}
+
+	var JSONModelFunc = func(data *models.Metrics) error {
+		var requestBody bytes.Buffer
+		gz := gzip.NewWriter(&requestBody)
+		err := data.JSONEncodeBytes(gz)
+		gz.Close()
+
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
+		req, err := http.NewRequest("POST", server, &requestBody)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		req.Header.Set("Accept-Encoding", "gzip")
+		req.Header.Set("Content-Encoding", "gzip")
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		defer resp.Body.Close()
+
+		_, errcoppy := io.Copy(io.Discard, resp.Body)
+		if errcoppy != nil {
+			log.Println(err)
+			return err
+		}
+		return nil
+	}
+
 	for {
-
 		time.Sleep(time.Duration(app.cfg.ReportInterval) * time.Second)
-
-		app.serv.RangeMetrics(func(data string) error {
-
-			resp, err := client.Post(server+data, "Content-Type: text/plain", nil)
-			if err != nil {
-				log.Println(err)
-				return err
-			}
-			defer resp.Body.Close()
-
-			_, errcoppy := io.Copy(io.Discard, resp.Body)
-			if errcoppy != nil {
-				log.Println(err)
-				return err
-			}
-
-			return nil
-		})
-
+		if app.cfg.ContentJSON == 1 {
+			app.serv.RangeMetricsJSON(JSONModelFunc)
+		} else {
+			app.serv.RangeMetricsPlain(plainTxtFunc)
+		}
 	}
 
 }
