@@ -84,9 +84,8 @@ func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request
 	}
 
 	var buf bytes.Buffer
-	errson := val.JSONEncodeBytes(io.Writer(&buf))
 
-	if errson != nil {
+	if errson := val.JSONEncodeBytes(io.Writer(&buf)); errson != nil {
 		logger.Log.Debug("error encoding response", zap.Error(errson))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
@@ -94,7 +93,12 @@ func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request
 
 	res.Header().Add("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
-	io.WriteString(res, buf.String())
+	if _, err := io.WriteString(res, buf.String()); err != nil {
+		logger.Log.Debug("error writing response", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 }
 
 func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Request) {
@@ -134,7 +138,11 @@ func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Requ
 
 	res.Header().Add("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
-	io.WriteString(res, buf.String())
+	if _, err := io.WriteString(res, buf.String()); err != nil {
+		logger.Log.Debug("error writing response", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 }
 
@@ -222,7 +230,12 @@ func (h *HandlersServer) mainPageGetPlain(res http.ResponseWriter, req *http.Req
 
 	}
 	res.WriteHeader(http.StatusOK)
-	io.WriteString(res, val)
+
+	if _, err := io.WriteString(res, val); err != nil {
+		logger.Log.Debug("error writing response", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 }
 
@@ -243,7 +256,12 @@ func (h *HandlersServer) mainPage(res http.ResponseWriter, req *http.Request) {
 
 		}
 		res.WriteHeader(http.StatusOK)
-		res.Write([]byte(val))
+		if _, err := res.Write([]byte(val)); err != nil {
+			logger.Log.Debug("error writing response", zap.Error(err))
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
 	} else {
 		http.Error(res, "Bad request", http.StatusBadRequest)
 	}

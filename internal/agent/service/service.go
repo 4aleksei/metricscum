@@ -36,7 +36,7 @@ func (h *HandlerStore) SetCounter(name string, val int64) {
 	_ = h.store.Add(name, *valMetric)
 }
 
-func (h *HandlerStore) RangeMetricsPlain(prog func(string) error) error {
+func (h *HandlerStore) RangeMetrics(prog func(string) error) error {
 	err := h.store.ReadAllClearCounters(func(key string, val repository.ValueMetric) error {
 		typename, valstr := repository.ConvertValueMetricToPlain(val)
 		data := typename + "/" + key + "/" + valstr

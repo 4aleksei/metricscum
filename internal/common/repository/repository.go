@@ -156,14 +156,16 @@ func ConvertToValueMetric(kind valueKind, valstr string) (*ValueMetric, error) {
 	return val, nil
 }
 
-func ConvertValueMetricToPlain(val ValueMetric) (string, string) {
+func ConvertValueMetricToPlain(val ValueMetric) (a, b string) {
 	switch val.kind {
 	case kindFloat64:
-		return GetKindStr(val.kind), strconv.FormatFloat(val.valueFloat, 'f', -1, 64)
+		a = GetKindStr(val.kind)
+		b = strconv.FormatFloat(val.valueFloat, 'f', -1, 64)
 	case kindInt64:
-		return GetKindStr(val.kind), strconv.FormatInt(val.valueInt, 10)
+		a = GetKindStr(val.kind)
+		b = strconv.FormatInt(val.valueInt, 10)
 	}
-	return "", ""
+	return a, b
 }
 
 type MemStorage struct {
@@ -189,7 +191,7 @@ func (storage *MemStorage) Get(name string) (ValueMetric, error) {
 	if entry, ok := storage.values[name]; ok {
 		return entry, nil
 	}
-	return *new(ValueMetric), ErrNotFoundName
+	return ValueMetric{}, ErrNotFoundName
 }
 
 func (storage *MemStorageMux) Add(name string, val ValueMetric) ValueMetric {

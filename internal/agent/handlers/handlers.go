@@ -75,6 +75,7 @@ func (app *App) Run() error {
 		req.Header.Set("Accept-Encoding", "gzip")
 		req.Header.Set("Content-Encoding", "gzip")
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
 		resp, err := client.Do(req)
 		if err != nil {
 			log.Println(err)
@@ -93,9 +94,9 @@ func (app *App) Run() error {
 	for {
 		time.Sleep(time.Duration(app.cfg.ReportInterval) * time.Second)
 		if app.cfg.ContentJSON == 1 {
-			app.serv.RangeMetricsJSON(JSONModelFunc)
+			_ = app.serv.RangeMetricsJSON(JSONModelFunc)
 		} else {
-			app.serv.RangeMetricsPlain(plainTxtFunc)
+			_ = app.serv.RangeMetrics(plainTxtFunc)
 		}
 	}
 
