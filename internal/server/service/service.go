@@ -51,7 +51,6 @@ func (h *HandlerStore) SetValueModel(valModel models.Metrics) (*models.Metrics, 
 		return nil, fmt.Errorf("failed %w", err)
 	}
 	newval := h.store.Add(valModel.ID, *val)
-
 	valNewModel := new(models.Metrics)
 	valNewModel.ConvertMetricToModel(valModel.ID, newval)
 	return valNewModel, nil
@@ -77,13 +76,12 @@ func (h *HandlerStore) GetValueModel(valModel models.Metrics) (*models.Metrics, 
 	return valNewModel, nil
 }
 
-func (h *HandlerStore) RecievePlainValue(typeVal string, name string, valstr string) error {
+func (h *HandlerStore) RecievePlainValue(typeVal, name, valstr string) error {
 	kind, errKind := valuemetric.GetKind(typeVal)
 	if errKind != nil {
 		return fmt.Errorf("failed %w", errKind)
 	}
 	val, err := valuemetric.ConvertToValueMetric(kind, valstr)
-
 	if err != nil {
 		return fmt.Errorf("failed %w", err)
 	}
@@ -91,7 +89,7 @@ func (h *HandlerStore) RecievePlainValue(typeVal string, name string, valstr str
 	return nil
 }
 
-func (h *HandlerStore) GetValuePlain(name string, typeVal string) (string, error) {
+func (h *HandlerStore) GetValuePlain(name, typeVal string) (string, error) {
 	val, err := h.store.Get(name)
 	if err != nil {
 		return "", fmt.Errorf("failed %w", err)
@@ -105,19 +103,14 @@ func (h *HandlerStore) GetValuePlain(name string, typeVal string) (string, error
 }
 
 func (h *HandlerStore) GetAllStore() (string, error) {
-
 	var valstr string
-
 	err := h.store.ReadAll(func(key string, val valuemetric.ValueMetric) error {
 		_, value := valuemetric.ConvertValueMetricToPlain(val)
 		valstr += (key + " : " + value + "\n")
-
 		return nil
 	})
-
 	if err != nil {
 		return "", err
 	}
-
 	return valstr, nil
 }

@@ -33,31 +33,16 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 func WithLogging(next http.Handler) http.Handler {
 	logFn := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-
 		responseData := &responseData{
 			status: 0,
 			size:   0,
 		}
-
 		lw := loggingResponseWriter{
 			ResponseWriter: w,
 			responseData:   responseData,
 		}
-
-		/*	pr, pw := io.Pipe()
-			tee := io.TeeReader(r.Body, pw)
-			r.Body = pr
-			go func() {
-				body, _ := io.ReadAll(tee)
-				defer pw.Close()
-				logger.Log.Info("This is the logged request:",
-					zap.String("body", string(body)))
-			}()*/
-
 		next.ServeHTTP(&lw, r)
-
 		duration := time.Since(start)
-
 		logger.Log.Info("got incoming HTTP request",
 			zap.String("uri", r.RequestURI),
 			zap.String("method", r.Method),

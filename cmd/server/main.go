@@ -17,7 +17,6 @@ import (
 )
 
 func main() {
-
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}
@@ -25,6 +24,7 @@ func main() {
 
 func run() error {
 	cfg := config.GetConfig()
+
 	if err := logger.Initialize(cfg.Level); err != nil {
 		return err
 	}

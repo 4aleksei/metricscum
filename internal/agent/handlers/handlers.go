@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"io"
 	"log"
 	"net"
@@ -27,7 +28,6 @@ func NewApp(store *service.HandlerStore, cfg *config.Config) *App {
 }
 
 func (app *App) Run() error {
-
 	var netTransport = &http.Transport{
 		Dial: (&net.Dialer{
 			Timeout: 2 * time.Second,
@@ -39,10 +39,15 @@ func (app *App) Run() error {
 		Transport: netTransport,
 	}
 	server := "http://" + app.cfg.Address + "/update/"
-
 	var plainTxtFunc = func(data string) error {
-
-		resp, err := client.Post(server+data, "text/plain", nil)
+		ctx := context.Background()
+		req, err := http.NewRequestWithContext(ctx, "POST", server, http.NoBody)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		req.Header.Set("Content-Type", "text/plain")
+		resp, err := client.Do(req)
 		if err != nil {
 			log.Println(err)
 			return err
@@ -61,13 +66,12 @@ func (app *App) Run() error {
 		gz := gzip.NewWriter(&requestBody)
 		err := data.JSONEncodeBytes(gz)
 		gz.Close()
-
 		if err != nil {
 			log.Println(err)
 			return err
 		}
-
-		req, err := http.NewRequest("POST", server, &requestBody)
+		ctx := context.Background()
+		req, err := http.NewRequestWithContext(ctx, "POST", server, &requestBody)
 		if err != nil {
 			log.Println(err)
 			return err
@@ -82,7 +86,6 @@ func (app *App) Run() error {
 			return err
 		}
 		defer resp.Body.Close()
-
 		_, errcoppy := io.Copy(io.Discard, resp.Body)
 		if errcoppy != nil {
 			log.Println(err)
@@ -90,14 +93,12 @@ func (app *App) Run() error {
 		}
 		return nil
 	}
-
 	for {
 		time.Sleep(time.Duration(app.cfg.ReportInterval) * time.Second)
-		if app.cfg.ContentJSON == 1 {
+		if app.cfg.ContentJSON {
 			_ = app.serv.RangeMetricsJSON(JSONModelFunc)
 		} else {
 			_ = app.serv.RangeMetrics(plainTxtFunc)
 		}
 	}
-
 }

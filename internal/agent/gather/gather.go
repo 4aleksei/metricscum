@@ -1,7 +1,8 @@
 package gather
 
 import (
-	"math/rand"
+	"crypto/rand"
+	"math/big"
 	"runtime"
 
 	"time"
@@ -26,15 +27,25 @@ func (app *AppGather) RunRutine() {
 	go app.mainGather()
 }
 
+const maxInt int64 = 1 << 53
+
+func Intn() int64 {
+	nBig, err := rand.Int(rand.Reader, big.NewInt(maxInt))
+	if err != nil {
+		panic(err)
+	}
+	return nBig.Int64()
+}
+
+func RandFloat64() float64 {
+	return float64(Intn()) / float64(maxInt)
+}
+
 func (app *AppGather) mainGather() {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var m runtime.MemStats
 	for {
-
 		time.Sleep(time.Duration(app.cfg.PollInterval) * time.Second)
-
 		runtime.ReadMemStats(&m)
-
 		app.serv.SetGauge("Alloc", float64(m.Alloc))
 		app.serv.SetGauge("BuckHashSys", float64(m.BuckHashSys))
 		app.serv.SetGauge("Frees", float64(m.Frees))
@@ -62,10 +73,7 @@ func (app *AppGather) mainGather() {
 		app.serv.SetGauge("StackSys", float64(m.StackSys))
 		app.serv.SetGauge("Sys", float64(m.Sys))
 		app.serv.SetGauge("TotalAlloc", float64(m.TotalAlloc))
-
 		app.serv.SetCounter("PollCount", 1)
-		app.serv.SetGauge("RandomValue", r.Float64())
-
+		app.serv.SetGauge("RandomValue", RandFloat64())
 	}
-
 }

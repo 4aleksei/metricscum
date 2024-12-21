@@ -24,25 +24,24 @@ type LongtermStorage interface {
 }
 
 type Config struct {
-	Interval uint
+	Interval int64
 	Restore  bool
 }
 
-const WriteIntervalDefault uint = 300
+const WriteIntervalDefault int64 = 300
 const RestoreDefault bool = true
 
 func ReadConfigFlag(cfg *Config) {
-	flag.UintVar(&cfg.Interval, "i", WriteIntervalDefault, "Write data Interval")
+	flag.Int64Var(&cfg.Interval, "i", WriteIntervalDefault, "Write data Interval")
 	flag.BoolVar(&cfg.Restore, "r", RestoreDefault, "Restore data true/false")
 }
 
 func ReadConfigEnv(cfg *Config) {
-
 	if envStoreInterval := os.Getenv("STORE_INTERVAL"); envStoreInterval != "" {
 		val, err := strconv.Atoi(envStoreInterval)
 		if err == nil {
 			if val >= 0 {
-				cfg.Interval = uint(val)
+				cfg.Interval = int64(val)
 			}
 		}
 	}
@@ -56,7 +55,6 @@ func ReadConfigEnv(cfg *Config) {
 			cfg.Restore = false
 		}
 	}
-
 }
 
 type MemStorageMuxLongTerm struct {
@@ -103,12 +101,10 @@ func (storage *MemStorageMuxLongTerm) doWriteData() {
 	valNewModel := new(models.Metrics)
 	err = storage.store.ReadAll(func(key string, val valuemetric.ValueMetric) error {
 		valNewModel.ConvertMetricToModel(key, val)
-
 		if errson := storage.filestorage.WriteData(valNewModel); errson != nil {
 			logger.Log.Debug("error writing data", zap.Error(errson))
 			return err
 		}
-
 		return nil
 	})
 	if err != nil {
@@ -117,7 +113,6 @@ func (storage *MemStorageMuxLongTerm) doWriteData() {
 }
 
 func (storage *MemStorageMuxLongTerm) LoadData() error {
-
 	err := storage.filestorage.OpenReader()
 	if err != nil {
 		logger.Log.Debug("error open source", zap.Error(err))
@@ -160,7 +155,7 @@ func (storage *MemStorageMuxLongTerm) DataWrite() {
 
 func (storage *MemStorageMuxLongTerm) DataRun() {
 	if storage.cfg.Restore {
-		storage.LoadData()
+		_ = storage.LoadData()
 	}
 	if storage.cfg.Interval > 0 {
 		go storage.saveData()

@@ -21,8 +21,8 @@ func run() error {
 	store := memstoragemux.NewStoreMux()
 	metricsService := service.NewHandlerStore(store)
 
-	gather := gather.NewAppGather(metricsService, cfg)
-	gather.RunRutine()
+	gatherApp := gather.NewAppGather(metricsService, cfg)
+	gatherApp.RunRutine()
 	mainHTTPClient := handlers.NewApp(metricsService, cfg)
 	return mainHTTPClient.Run()
 }
