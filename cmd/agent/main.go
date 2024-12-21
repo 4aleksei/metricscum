@@ -7,7 +7,7 @@ import (
 	"github.com/4aleksei/metricscum/internal/agent/gather"
 	"github.com/4aleksei/metricscum/internal/agent/handlers"
 	"github.com/4aleksei/metricscum/internal/agent/service"
-	"github.com/4aleksei/metricscum/internal/common/repository"
+	"github.com/4aleksei/metricscum/internal/common/repository/memstoragemux"
 )
 
 func main() {
@@ -18,11 +18,11 @@ func main() {
 
 func run() error {
 	cfg := config.GetConfig()
-	store := repository.NewStoreMux()
+	store := memstoragemux.NewStoreMux()
 	metricsService := service.NewHandlerStore(store)
 
-	gather := gather.NewAppGather(metricsService, cfg)
-	gather.RunRutine()
+	gatherApp := gather.NewAppGather(metricsService, cfg)
+	gatherApp.RunRutine()
 	mainHTTPClient := handlers.NewApp(metricsService, cfg)
 	return mainHTTPClient.Run()
 }

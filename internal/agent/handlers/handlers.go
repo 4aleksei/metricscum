@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"bytes"
+	"compress/gzip"
+	"context"
 	"io"
 	"log"
 	"net"
@@ -9,6 +12,7 @@ import (
 
 	"github.com/4aleksei/metricscum/internal/agent/config"
 	"github.com/4aleksei/metricscum/internal/agent/service"
+	"github.com/4aleksei/metricscum/internal/common/models"
 )
 
 type App struct {
@@ -24,7 +28,6 @@ func NewApp(store *service.HandlerStore, cfg *config.Config) *App {
 }
 
 func (app *App) Run() error {
-
 	var netTransport = &http.Transport{
 		Dial: (&net.Dialer{
 			Timeout: 2 * time.Second,
@@ -36,28 +39,66 @@ func (app *App) Run() error {
 		Transport: netTransport,
 	}
 	server := "http://" + app.cfg.Address + "/update/"
-	for {
-
-		time.Sleep(time.Duration(app.cfg.ReportInterval) * time.Second)
-
-		app.serv.RangeMetrics(func(data string) error {
-
-			resp, err := client.Post(server+data, "Content-Type: text/plain", nil)
-			if err != nil {
-				log.Println(err)
-				return err
-			}
-			defer resp.Body.Close()
-
-			_, errcoppy := io.Copy(io.Discard, resp.Body)
-			if errcoppy != nil {
-				log.Println(err)
-				return err
-			}
-
-			return nil
-		})
-
+	var plainTxtFunc = func(data string) error {
+		ctx := context.Background()
+		req, err := http.NewRequestWithContext(ctx, "POST", server, http.NoBody)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		req.Header.Set("Content-Type", "text/plain")
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		defer resp.Body.Close()
+		_, errcoppy := io.Copy(io.Discard, resp.Body)
+		if errcoppy != nil {
+			log.Println(err)
+			return err
+		}
+		return nil
 	}
 
+	var JSONModelFunc = func(data *models.Metrics) error {
+		var requestBody bytes.Buffer
+		gz := gzip.NewWriter(&requestBody)
+		err := data.JSONEncodeBytes(gz)
+		gz.Close()
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		ctx := context.Background()
+		req, err := http.NewRequestWithContext(ctx, "POST", server, &requestBody)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		req.Header.Set("Accept-Encoding", "gzip")
+		req.Header.Set("Content-Encoding", "gzip")
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		defer resp.Body.Close()
+		_, errcoppy := io.Copy(io.Discard, resp.Body)
+		if errcoppy != nil {
+			log.Println(err)
+			return err
+		}
+		return nil
+	}
+	for {
+		time.Sleep(time.Duration(app.cfg.ReportInterval) * time.Second)
+		if app.cfg.ContentJSON {
+			_ = app.serv.RangeMetricsJSON(JSONModelFunc)
+		} else {
+			_ = app.serv.RangeMetrics(plainTxtFunc)
+		}
+	}
 }

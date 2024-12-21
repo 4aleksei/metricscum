@@ -3,24 +3,23 @@ package service
 import (
 	"errors"
 
-	"github.com/4aleksei/metricscum/internal/common/repository"
+	"github.com/4aleksei/metricscum/internal/common/models"
+	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
+	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
 )
 
 type AgentMetricsStorage interface {
-	Update(string, repository.GaugeMetric)
-	Add(string, repository.CounterMetric)
-	ReadAllClearCounters(repository.FuncReadAllMetric) error
+	Add(string, valuemetric.ValueMetric) valuemetric.ValueMetric
+	ReadAllClearCounters(memstorage.FuncReadAllMetric) error
 }
 
 type HandlerStore struct {
-	Store AgentMetricsStorage
+	store AgentMetricsStorage
 }
 
 func NewHandlerStore(store AgentMetricsStorage) *HandlerStore {
-
 	p := new(HandlerStore)
-	p.Store = store
-
+	p.store = store
 	return p
 }
 
@@ -29,29 +28,29 @@ var (
 )
 
 func (h *HandlerStore) SetGauge(name string, val float64) {
-
-	h.Store.Update(name, repository.GaugeMetric(val))
-
+	valMetric := valuemetric.ConvertToFloatValueMetric(val)
+	_ = h.store.Add(name, *valMetric)
 }
 
-func (h *HandlerStore) SetGaugeFloat(name string, val float64) {
-
-	h.Store.Update(name, repository.GaugeMetric(val))
-
-}
-
-func (h *HandlerStore) SetCounter(name string, val uint64) {
-
-	h.Store.Add(name, repository.CounterMetric(val))
-
+func (h *HandlerStore) SetCounter(name string, val int64) {
+	valMetric := valuemetric.ConvertToIntValueMetric(val)
+	_ = h.store.Add(name, *valMetric)
 }
 
 func (h *HandlerStore) RangeMetrics(prog func(string) error) error {
-
-	err := h.Store.ReadAllClearCounters(func(typename string, name string, value string) error {
-		data := typename + "/" + name + "/" + value
+	err := h.store.ReadAllClearCounters(func(key string, val valuemetric.ValueMetric) error {
+		typename, valstr := valuemetric.ConvertValueMetricToPlain(val)
+		data := typename + "/" + key + "/" + valstr
 		return prog(data)
 	})
+	return err
+}
 
+func (h *HandlerStore) RangeMetricsJSON(prog func(*models.Metrics) error) error {
+	err := h.store.ReadAllClearCounters(func(key string, val valuemetric.ValueMetric) error {
+		valNewModel := new(models.Metrics)
+		valNewModel.ConvertMetricToModel(key, val)
+		return prog(valNewModel)
+	})
 	return err
 }
