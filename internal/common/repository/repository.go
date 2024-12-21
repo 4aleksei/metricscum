@@ -149,8 +149,9 @@ func (storage *MemStorageMuxLongTerm) saveData() {
 
 func (storage *MemStorageMuxLongTerm) DataWrite() {
 	storage.mux.Lock()
+	defer storage.mux.Unlock()
+
 	storage.doWriteData()
-	storage.mux.Unlock()
 }
 
 func (storage *MemStorageMuxLongTerm) DataRun() {

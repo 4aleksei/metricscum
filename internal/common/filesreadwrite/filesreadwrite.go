@@ -25,15 +25,15 @@ type EncodeDecode interface {
 	Close()
 }
 
-type FileStorage struct {
+type fileStorage struct {
 	filename string
 	writer   *producer
 	reader   *consumer
 	encoder  EncodeDecode
 }
 
-func NewFileStorage(filename string, encoder EncodeDecode) *FileStorage {
-	store := new(FileStorage)
+func NewFileStorage(filename string, encoder EncodeDecode) *fileStorage {
+	store := new(fileStorage)
 	store.filename = filename
 	store.encoder = encoder
 	return store
@@ -63,14 +63,14 @@ func newConsumer(filename string) (*consumer, error) {
 	}, nil
 }
 
-func (filestor *FileStorage) WriteData(data *models.Metrics) error {
+func (filestor *fileStorage) WriteData(data *models.Metrics) error {
 	return filestor.encoder.WriteData(data)
 }
-func (filestor *FileStorage) ReadData(data *models.Metrics) error {
+func (filestor *fileStorage) ReadData(data *models.Metrics) error {
 	return filestor.encoder.ReadData(data)
 }
 
-func (filestor *FileStorage) OpenWriter() error {
+func (filestor *fileStorage) OpenWriter() error {
 	var err error
 	filestor.writer, err = newProducer(filestor.filename)
 	if err != nil {
@@ -80,7 +80,7 @@ func (filestor *FileStorage) OpenWriter() error {
 	return nil
 }
 
-func (filestor *FileStorage) OpenReader() error {
+func (filestor *fileStorage) OpenReader() error {
 	var err error
 	filestor.reader, err = newConsumer(filestor.filename)
 	if err != nil {
@@ -90,7 +90,7 @@ func (filestor *FileStorage) OpenReader() error {
 	return nil
 }
 
-func (filestor *FileStorage) Close() error {
+func (filestor *fileStorage) Close() error {
 	if filestor.writer != nil {
 		defer func() { filestor.writer = nil; filestor.encoder.Close() }()
 		if err := filestor.writer.writer.Flush(); err != nil {
