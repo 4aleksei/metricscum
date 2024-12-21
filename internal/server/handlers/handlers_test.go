@@ -11,7 +11,8 @@ import (
 
 	"io"
 
-	"github.com/4aleksei/metricscum/internal/common/repository"
+	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,7 +47,7 @@ func Test_handlers_mainHTTPPlain(t *testing.T) {
 		method string
 		url    string
 	}
-	store := service.NewHandlerStore(repository.NewStore())
+	store := service.NewHandlerStore(memstorage.NewStore())
 	h := new(HandlersServer)
 	h.store = store
 
@@ -107,7 +108,7 @@ func Test_handlers_mainHTTPJSON(t *testing.T) {
 		body        string
 		contentType string
 	}
-	store := service.NewHandlerStore(repository.NewStore())
+	store := service.NewHandlerStore(memstorage.NewStore())
 	h := new(HandlersServer)
 	h.store = store
 

@@ -2,250 +2,143 @@ package repository
 
 import (
 	"errors"
-	"fmt"
-	"strconv"
 	"sync"
+	"time"
+
+	"github.com/4aleksei/metricscum/internal/common/logger"
+	"github.com/4aleksei/metricscum/internal/common/models"
+	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
+	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
+	"go.uber.org/zap"
 )
 
-type valueKind int
-
-const (
-	kindBadEmpty valueKind = iota
-	kindInt64
-	kindFloat64
-)
-
-type ValueMetric struct {
-	kind       valueKind
-	valueFloat float64
-	valueInt   int64
+type LongtermStorage interface {
+	OpenWriter() error
+	OpenReader() error
+	WriteData(*models.Metrics) error
+	ReadData(*models.Metrics) error
+	Close() error
 }
 
-type FuncReadAllMetric func(name string, val ValueMetric) error
-
-var (
-	ErrNotFoundName = errors.New("not found name")
-)
-
-func (v *ValueMetric) GetTypeStr() string {
-	return GetKindStr(v.kind)
+// filePath string
+type Config struct {
+	Interval uint
+	Restore  bool
 }
 
-func (v *ValueMetric) ValueInt() *int64 {
-	if v.kind == kindInt64 {
-		return &v.valueInt
-	}
-	return nil
+type MemStorageMuxLongTerm struct {
+	store       *memstorage.MemStorage
+	mux         *sync.Mutex
+	cfg         *Config
+	filestorage LongtermStorage
 }
 
-func (v *ValueMetric) ValueFloat() *float64 {
-	if v.kind == kindFloat64 {
-		return &v.valueFloat
-	}
-	return nil
-}
-
-func (v *ValueMetric) doUpdate(val ValueMetric) {
-	switch v.kind {
-	case kindFloat64:
-		v.valueFloat = val.valueFloat
-	case kindInt64:
-		v.valueInt += val.valueInt
-	default:
-	}
-}
-
-func (v *ValueMetric) doRead() ValueMetric {
-	switch v.kind {
-	case kindInt64:
-		v.valueInt = 0
-	default:
-	}
-	return *v
-}
-
-func (v *ValueMetric) KindOf(k valueKind) bool {
-	return v.kind == k
-}
-
-var (
-	ErrBadTypeValue = errors.New("invalid typeValue")
-	ErrBadValue     = errors.New("error value conversion")
-	ErrBadKindType  = errors.New("error kind type")
-)
-
-func GetKind(typeValue string) (valueKind, error) {
-	switch typeValue {
-	case "gauge":
-		return kindFloat64, nil
-	case "counter":
-		return kindInt64, nil
-	default:
-		return kindBadEmpty, ErrBadTypeValue
-	}
-}
-
-func GetKindStr(typeValue valueKind) string {
-	switch typeValue {
-	case kindFloat64:
-		return "gauge"
-	case kindInt64:
-		return "counter"
-	default:
-		return ""
-	}
-}
-
-func ConvertToFloatValueMetric(valF float64) *ValueMetric {
-	val := new(ValueMetric)
-	val.kind = kindFloat64
-	val.valueFloat = valF
-	return val
-}
-
-func ConvertToIntValueMetric(valI int64) *ValueMetric {
-	val := new(ValueMetric)
-	val.kind = kindInt64
-	val.valueInt = valI
-	return val
-}
-
-func ConvertToValueMetricInt(kind valueKind, delta *int64, value *float64) (*ValueMetric, error) {
-	val := new(ValueMetric)
-	val.kind = kind
-	var err error
-	switch kind {
-	case kindFloat64:
-		if value == nil {
-			return nil, fmt.Errorf("failed %w : %w", ErrBadValue, err)
-		}
-		val.valueFloat = *value
-
-	case kindInt64:
-		if delta == nil {
-			return nil, fmt.Errorf("failed %w : %w", ErrBadValue, err)
-		}
-		val.valueInt = *delta
-
-	default:
-		return nil, fmt.Errorf("failed %w : %w", ErrBadValue, ErrBadKindType)
-	}
-	return val, nil
-}
-
-func ConvertToValueMetric(kind valueKind, valstr string) (*ValueMetric, error) {
-	val := new(ValueMetric)
-	val.kind = kind
-	var err error
-	switch kind {
-	case kindFloat64:
-		val.valueFloat, err = strconv.ParseFloat(valstr, 64)
-		if err != nil {
-			return nil, fmt.Errorf("failed %w : %w", ErrBadValue, err)
-		}
-
-	case kindInt64:
-		val.valueInt, err = strconv.ParseInt(valstr, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("failed %w : %w", ErrBadValue, err)
-		}
-
-	default:
-		return nil, fmt.Errorf("failed %w : %w", ErrBadValue, ErrBadKindType)
-	}
-	return val, nil
-}
-
-func ConvertValueMetricToPlain(val ValueMetric) (a, b string) {
-	switch val.kind {
-	case kindFloat64:
-		a = GetKindStr(val.kind)
-		b = strconv.FormatFloat(val.valueFloat, 'f', -1, 64)
-	case kindInt64:
-		a = GetKindStr(val.kind)
-		b = strconv.FormatInt(val.valueInt, 10)
-	}
-	return a, b
-}
-
-type MemStorage struct {
-	values map[string]ValueMetric
-}
-
-type MemStorageMux struct {
-	store *MemStorage
-	mux   *sync.Mutex
-}
-
-func (storage *MemStorage) Add(name string, val ValueMetric) ValueMetric {
-	if entry, ok := storage.values[name]; ok {
-		entry.doUpdate(val)
-		storage.values[name] = entry
-		return entry
-	}
-	storage.values[name] = val
-	return val
-}
-
-func (storage *MemStorage) Get(name string) (ValueMetric, error) {
-	if entry, ok := storage.values[name]; ok {
-		return entry, nil
-	}
-	return ValueMetric{}, ErrNotFoundName
-}
-
-func (storage *MemStorageMux) Add(name string, val ValueMetric) ValueMetric {
+func (storage *MemStorageMuxLongTerm) Add(name string, val valuemetric.ValueMetric) valuemetric.ValueMetric {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	return storage.store.Add(name, val)
+	valNew := storage.store.Add(name, val)
+	if storage.cfg.Interval == 0 {
+		storage.doWriteData()
+	}
+	return valNew
 }
 
-func (storage *MemStorageMux) Get(name string) (ValueMetric, error) {
+func (storage *MemStorageMuxLongTerm) Get(name string) (valuemetric.ValueMetric, error) {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
 	return storage.store.Get(name)
 }
 
-func (storage *MemStorageMux) ReadAll(prog FuncReadAllMetric) error {
+func (storage *MemStorageMuxLongTerm) ReadAll(prog memstorage.FuncReadAllMetric) error {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
 	return storage.store.ReadAll(prog)
 }
-func (storage *MemStorageMux) ReadAllClearCounters(prog FuncReadAllMetric) error {
+func (storage *MemStorageMuxLongTerm) ReadAllClearCounters(prog memstorage.FuncReadAllMetric) error {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
 	return storage.store.ReadAllClearCounters(prog)
 }
-func (storage *MemStorage) ReadAllClearCounters(prog FuncReadAllMetric) error {
-	for name, entry := range storage.values {
-		err := prog(name, entry)
+
+func (store *MemStorageMuxLongTerm) doWriteData() {
+	err := store.filestorage.OpenWriter()
+	if err != nil {
+		logger.Log.Debug("error open source", zap.Error(err))
+		return
+	}
+	defer func() { store.filestorage.Close() }()
+	valNewModel := new(models.Metrics)
+	err = store.store.ReadAll(func(key string, val valuemetric.ValueMetric) error {
+		valNewModel.ConvertMetricToModel(key, val)
+
+		if errson := store.filestorage.WriteData(valNewModel); errson != nil {
+			logger.Log.Debug("error writing data", zap.Error(errson))
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return
+	}
+}
+
+func (store *MemStorageMuxLongTerm) LoadData() error {
+
+	err := store.filestorage.OpenReader()
+	if err != nil {
+		logger.Log.Debug("error open source", zap.Error(err))
+		return err
+	}
+	defer store.filestorage.Close()
+
+	valNewModel := new(models.Metrics)
+	for {
+		if errson := store.filestorage.ReadData(valNewModel); errson != nil {
+			return errson
+		}
+		kind, errKind := valuemetric.GetKind(valNewModel.MType)
+		if errKind != nil {
+			return errKind
+		}
+		if valNewModel.ID == "" {
+			return errors.New("no name")
+		}
+		val, err := valuemetric.ConvertToValueMetricInt(kind, valNewModel.Delta, valNewModel.Value)
 		if err != nil {
 			return err
 		}
-		storage.values[name] = entry.doRead()
+		_ = store.store.Add(valNewModel.ID, *val)
 	}
-	return nil
 }
 
-func (storage *MemStorage) ReadAll(prog FuncReadAllMetric) error {
-	for name, entry := range storage.values {
-		err := prog(name, entry)
-		if err != nil {
-			return err
-		}
+func (store *MemStorageMuxLongTerm) saveData() {
+	for {
+		time.Sleep(time.Duration(store.cfg.Interval) * time.Second)
+		store.DataWrite()
 	}
-	return nil
 }
 
-func NewStore() *MemStorage {
-	p := new(MemStorage)
-	p.values = make(map[string]ValueMetric)
-	return p
+func (store *MemStorageMuxLongTerm) DataWrite() {
+	store.mux.Lock()
+	store.doWriteData()
+	store.mux.Unlock()
 }
 
-func NewStoreMux() *MemStorageMux {
-	p := new(MemStorageMux)
-	p.store = NewStore()
+func (store *MemStorageMuxLongTerm) DataRun() {
+	if store.cfg.Restore {
+		store.LoadData()
+	}
+	if store.cfg.Interval > 0 {
+		go store.saveData()
+	}
+}
+
+func NewStoreMuxFiles(cfg *Config, ltstore LongtermStorage) *MemStorageMuxLongTerm {
+	p := new(MemStorageMuxLongTerm)
+	p.store = memstorage.NewStore()
 	p.mux = new(sync.Mutex)
+	p.cfg = cfg
+	p.filestorage = ltstore
 	return p
 }

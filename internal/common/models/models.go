@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/4aleksei/metricscum/internal/common/repository"
+	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
 )
 
 type Metrics struct {
@@ -14,7 +14,7 @@ type Metrics struct {
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
 
-func (valModels *Metrics) ConvertMetricToModel(name string, valMetrics repository.ValueMetric) {
+func (valModels *Metrics) ConvertMetricToModel(name string, valMetrics valuemetric.ValueMetric) {
 	valModels.ID = name
 	valModels.MType = valMetrics.GetTypeStr()
 	valModels.Delta = valMetrics.ValueInt()

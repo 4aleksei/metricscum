@@ -5,13 +5,14 @@ import (
 	"fmt"
 
 	"github.com/4aleksei/metricscum/internal/common/models"
-	"github.com/4aleksei/metricscum/internal/common/repository"
+	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
+	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
 )
 
 type ServerMetricsStorage interface {
-	Add(string, repository.ValueMetric) repository.ValueMetric
-	Get(string) (repository.ValueMetric, error)
-	ReadAll(repository.FuncReadAllMetric) error
+	Add(string, valuemetric.ValueMetric) valuemetric.ValueMetric
+	Get(string) (valuemetric.ValueMetric, error)
+	ReadAll(memstorage.FuncReadAllMetric) error
 }
 
 type HandlerStore struct {
@@ -30,7 +31,7 @@ var (
 )
 
 func (h *HandlerStore) CheckType(s string) error {
-	_, errKind := repository.GetKind(s)
+	_, errKind := valuemetric.GetKind(s)
 	if errKind != nil {
 		return errKind
 	}
@@ -38,14 +39,14 @@ func (h *HandlerStore) CheckType(s string) error {
 }
 
 func (h *HandlerStore) SetValueModel(valModel models.Metrics) (*models.Metrics, error) {
-	kind, errKind := repository.GetKind(valModel.MType)
+	kind, errKind := valuemetric.GetKind(valModel.MType)
 	if errKind != nil {
 		return nil, fmt.Errorf("failed %w", errKind)
 	}
 	if valModel.ID == "" {
 		return nil, fmt.Errorf("failed %w", ErrBadName)
 	}
-	val, err := repository.ConvertToValueMetricInt(kind, valModel.Delta, valModel.Value)
+	val, err := valuemetric.ConvertToValueMetricInt(kind, valModel.Delta, valModel.Value)
 	if err != nil {
 		return nil, fmt.Errorf("failed %w", err)
 	}
@@ -57,7 +58,7 @@ func (h *HandlerStore) SetValueModel(valModel models.Metrics) (*models.Metrics, 
 }
 
 func (h *HandlerStore) GetValueModel(valModel models.Metrics) (*models.Metrics, error) {
-	kind, errKind := repository.GetKind(valModel.MType)
+	kind, errKind := valuemetric.GetKind(valModel.MType)
 	if errKind != nil {
 		return nil, fmt.Errorf("failed %w", errKind)
 	}
@@ -77,11 +78,11 @@ func (h *HandlerStore) GetValueModel(valModel models.Metrics) (*models.Metrics, 
 }
 
 func (h *HandlerStore) RecievePlainValue(typeVal string, name string, valstr string) error {
-	kind, errKind := repository.GetKind(typeVal)
+	kind, errKind := valuemetric.GetKind(typeVal)
 	if errKind != nil {
 		return fmt.Errorf("failed %w", errKind)
 	}
-	val, err := repository.ConvertToValueMetric(kind, valstr)
+	val, err := valuemetric.ConvertToValueMetric(kind, valstr)
 
 	if err != nil {
 		return fmt.Errorf("failed %w", err)
@@ -95,11 +96,11 @@ func (h *HandlerStore) GetValuePlain(name string, typeVal string) (string, error
 	if err != nil {
 		return "", fmt.Errorf("failed %w", err)
 	}
-	typeKind, errKind := repository.GetKind(typeVal)
+	typeKind, errKind := valuemetric.GetKind(typeVal)
 	if (errKind != nil) || (!val.KindOf(typeKind)) {
 		return "", fmt.Errorf("failed %w", errKind)
 	}
-	_, valstr := repository.ConvertValueMetricToPlain(val)
+	_, valstr := valuemetric.ConvertValueMetricToPlain(val)
 	return valstr, nil
 }
 
@@ -107,8 +108,8 @@ func (h *HandlerStore) GetAllStore() (string, error) {
 
 	var valstr string
 
-	err := h.store.ReadAll(func(key string, val repository.ValueMetric) error {
-		_, value := repository.ConvertValueMetricToPlain(val)
+	err := h.store.ReadAll(func(key string, val valuemetric.ValueMetric) error {
+		_, value := valuemetric.ConvertValueMetricToPlain(val)
 		valstr += (key + " : " + value + "\n")
 
 		return nil

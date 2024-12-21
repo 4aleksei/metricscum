@@ -4,14 +4,16 @@ import (
 	"flag"
 	"os"
 	"strconv"
+
+	"github.com/4aleksei/metricscum/internal/common/repository"
 )
 
 type Config struct {
-	Address       string
-	Level         string
-	WriteInterval uint
-	Restore       bool
-	FilePath      string
+	Address  string
+	Level    string
+	FilePath string
+
+	Repcfg repository.Config
 }
 
 const AddressDefault string = ":8080"
@@ -24,8 +26,8 @@ func GetConfig() *Config {
 	cfg := new(Config)
 	flag.StringVar(&cfg.Address, "a", AddressDefault, "address and port to run server")
 	flag.StringVar(&cfg.Level, "l", LevelDefault, "level of logging")
-	flag.UintVar(&cfg.WriteInterval, "i", WriteIntervalDefault, "Write data Interval")
-	flag.BoolVar(&cfg.Restore, "r", RestoreDefault, "Restore data true/false")
+	flag.UintVar(&cfg.Repcfg.Interval, "i", WriteIntervalDefault, "Write data Interval")
+	flag.BoolVar(&cfg.Repcfg.Restore, "r", RestoreDefault, "Restore data true/false")
 	flag.StringVar(&cfg.FilePath, "f", FilePathDefault, "FilePath store")
 
 	flag.Parse()
@@ -38,7 +40,7 @@ func GetConfig() *Config {
 		val, err := strconv.Atoi(envStoreInterval)
 		if err == nil {
 			if val >= 0 {
-				cfg.WriteInterval = uint(val)
+				cfg.Repcfg.Interval = uint(val)
 			}
 		}
 	}
@@ -46,10 +48,10 @@ func GetConfig() *Config {
 	if envRestore := os.Getenv("RESTORE"); envRestore != "" {
 		switch envRestore {
 		case "true":
-			cfg.Restore = true
+			cfg.Repcfg.Restore = true
 
 		case "false":
-			cfg.Restore = false
+			cfg.Repcfg.Restore = false
 		}
 	}
 
