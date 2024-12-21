@@ -2,6 +2,9 @@ package repository
 
 import (
 	"errors"
+	"flag"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -20,10 +23,40 @@ type LongtermStorage interface {
 	Close() error
 }
 
-// filePath string
 type Config struct {
 	Interval uint
 	Restore  bool
+}
+
+const WriteIntervalDefault uint = 300
+const RestoreDefault bool = true
+
+func ReadConfigFlag(cfg *Config) {
+	flag.UintVar(&cfg.Interval, "i", WriteIntervalDefault, "Write data Interval")
+	flag.BoolVar(&cfg.Restore, "r", RestoreDefault, "Restore data true/false")
+}
+
+func ReadConfigEnv(cfg *Config) {
+
+	if envStoreInterval := os.Getenv("STORE_INTERVAL"); envStoreInterval != "" {
+		val, err := strconv.Atoi(envStoreInterval)
+		if err == nil {
+			if val >= 0 {
+				cfg.Interval = uint(val)
+			}
+		}
+	}
+
+	if envRestore := os.Getenv("RESTORE"); envRestore != "" {
+		switch envRestore {
+		case "true":
+			cfg.Restore = true
+
+		case "false":
+			cfg.Restore = false
+		}
+	}
+
 }
 
 type MemStorageMuxLongTerm struct {
@@ -60,18 +93,18 @@ func (storage *MemStorageMuxLongTerm) ReadAllClearCounters(prog memstorage.FuncR
 	return storage.store.ReadAllClearCounters(prog)
 }
 
-func (store *MemStorageMuxLongTerm) doWriteData() {
-	err := store.filestorage.OpenWriter()
+func (storage *MemStorageMuxLongTerm) doWriteData() {
+	err := storage.filestorage.OpenWriter()
 	if err != nil {
 		logger.Log.Debug("error open source", zap.Error(err))
 		return
 	}
-	defer func() { store.filestorage.Close() }()
+	defer func() { storage.filestorage.Close() }()
 	valNewModel := new(models.Metrics)
-	err = store.store.ReadAll(func(key string, val valuemetric.ValueMetric) error {
+	err = storage.store.ReadAll(func(key string, val valuemetric.ValueMetric) error {
 		valNewModel.ConvertMetricToModel(key, val)
 
-		if errson := store.filestorage.WriteData(valNewModel); errson != nil {
+		if errson := storage.filestorage.WriteData(valNewModel); errson != nil {
 			logger.Log.Debug("error writing data", zap.Error(errson))
 			return err
 		}
@@ -83,18 +116,18 @@ func (store *MemStorageMuxLongTerm) doWriteData() {
 	}
 }
 
-func (store *MemStorageMuxLongTerm) LoadData() error {
+func (storage *MemStorageMuxLongTerm) LoadData() error {
 
-	err := store.filestorage.OpenReader()
+	err := storage.filestorage.OpenReader()
 	if err != nil {
 		logger.Log.Debug("error open source", zap.Error(err))
 		return err
 	}
-	defer store.filestorage.Close()
+	defer storage.filestorage.Close()
 
 	valNewModel := new(models.Metrics)
 	for {
-		if errson := store.filestorage.ReadData(valNewModel); errson != nil {
+		if errson := storage.filestorage.ReadData(valNewModel); errson != nil {
 			return errson
 		}
 		kind, errKind := valuemetric.GetKind(valNewModel.MType)
@@ -108,29 +141,29 @@ func (store *MemStorageMuxLongTerm) LoadData() error {
 		if err != nil {
 			return err
 		}
-		_ = store.store.Add(valNewModel.ID, *val)
+		_ = storage.store.Add(valNewModel.ID, *val)
 	}
 }
 
-func (store *MemStorageMuxLongTerm) saveData() {
+func (storage *MemStorageMuxLongTerm) saveData() {
 	for {
-		time.Sleep(time.Duration(store.cfg.Interval) * time.Second)
-		store.DataWrite()
+		time.Sleep(time.Duration(storage.cfg.Interval) * time.Second)
+		storage.DataWrite()
 	}
 }
 
-func (store *MemStorageMuxLongTerm) DataWrite() {
-	store.mux.Lock()
-	store.doWriteData()
-	store.mux.Unlock()
+func (storage *MemStorageMuxLongTerm) DataWrite() {
+	storage.mux.Lock()
+	storage.doWriteData()
+	storage.mux.Unlock()
 }
 
-func (store *MemStorageMuxLongTerm) DataRun() {
-	if store.cfg.Restore {
-		store.LoadData()
+func (storage *MemStorageMuxLongTerm) DataRun() {
+	if storage.cfg.Restore {
+		storage.LoadData()
 	}
-	if store.cfg.Interval > 0 {
-		go store.saveData()
+	if storage.cfg.Interval > 0 {
+		go storage.saveData()
 	}
 }
 
