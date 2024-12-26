@@ -5,9 +5,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
-	"github.com/4aleksei/metricscum/internal/common/logger"
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
 	"github.com/4aleksei/metricscum/internal/server/config"
@@ -19,18 +19,24 @@ import (
 	"go.uber.org/zap"
 )
 
-type HandlersServer struct {
-	store *service.HandlerStore
-	cfg   *config.Config
-	srv   *http.Server
-}
+type (
+	HandlersServer struct {
+		store *service.HandlerStore
+		cfg   *config.Config
+		srv   *http.Server
+		l     *zap.Logger
+	}
+)
 
-const textHTMLContent string = "text/html"
+const (
+	textHTMLContent string = "text/html"
+)
 
-func NewHandlers(store *service.HandlerStore, cfg *config.Config) *HandlersServer {
+func NewHandlers(store *service.HandlerStore, cfg *config.Config, l *zap.Logger) *HandlersServer {
 	h := new(HandlersServer)
 	h.store = store
 	h.cfg = cfg
+	h.l = l
 	h.srv = &http.Server{
 		Addr:              h.cfg.Address,
 		Handler:           h.newRouter(),
@@ -39,15 +45,64 @@ func NewHandlers(store *service.HandlerStore, cfg *config.Config) *HandlersServe
 	return h
 }
 
+func (h *HandlersServer) withLogging(next http.Handler) http.Handler {
+	logFn := func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		responseData := httplogs.NewResponseData()
+		lw := httplogs.NewResponseWriter(responseData, w)
+
+		next.ServeHTTP(lw, r)
+		duration := time.Since(start)
+		h.l.Info("got incoming HTTP request",
+			zap.String("uri", r.RequestURI),
+			zap.String("method", r.Method),
+			zap.String("AcceptEnc", r.Header.Get("Accept-Encoding")),
+			zap.String("ContentEnc", r.Header.Get("Content-Encoding")),
+			zap.String("Accept", r.Header.Get("Accept")),
+			zap.String("ContentType", r.Header.Get("Content-Type")),
+			zap.Duration("duration", duration),
+			zap.Int("resp_status", responseData.GetStatus()),
+			zap.Int("resp_size", responseData.GetSize()))
+	}
+	return http.HandlerFunc(logFn)
+}
+
 func (h *HandlersServer) Serve() error {
 	return h.srv.ListenAndServe()
+}
+
+func (h *HandlersServer) gzipMiddleware(next http.Handler) http.Handler {
+	gzipfn := func(w http.ResponseWriter, r *http.Request) {
+		ow := w
+		acceptEncoding := r.Header.Get("Accept-Encoding")
+		supportsGzip := strings.Contains(acceptEncoding, "gzip")
+		if supportsGzip {
+			cw := httpgzip.NewCompressWriter(w)
+			ow = cw
+			defer cw.Close()
+		}
+		contentEncoding := r.Header.Get("Content-Encoding")
+		sendsGzip := strings.Contains(contentEncoding, "gzip")
+		if sendsGzip {
+			cr, err := httpgzip.NewCompressReader(r.Body)
+			if err != nil {
+				h.l.Debug("cannot decode gzip", zap.Error(err))
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			r.Body = cr
+			defer cr.Close()
+		}
+		next.ServeHTTP(ow, r)
+	}
+	return http.HandlerFunc(gzipfn)
 }
 
 func (h *HandlersServer) newRouter() http.Handler {
 	mux := chi.NewRouter()
 
-	mux.Use(httplogs.WithLogging)
-	mux.Use(httpgzip.GzipMiddleware)
+	mux.Use(h.withLogging)
+	mux.Use(h.gzipMiddleware)
 	mux.Use(middleware.Recoverer)
 
 	mux.Post("/update/", h.mainPageJSON)
@@ -68,7 +123,7 @@ func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request
 	}
 	var JSONstr models.Metrics
 	if err := JSONstr.JSONDecode(req.Body); err != nil {
-		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		h.l.Debug("cannot decode request JSON body", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -83,14 +138,14 @@ func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request
 	}
 	var buf bytes.Buffer
 	if errson := val.JSONEncodeBytes(io.Writer(&buf)); errson != nil {
-		logger.Log.Debug("error encoding response", zap.Error(errson))
+		h.l.Debug("error encoding response", zap.Error(errson))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	res.Header().Add("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 	if _, err := io.WriteString(res, buf.String()); err != nil {
-		logger.Log.Debug("error writing response", zap.Error(err))
+		h.l.Debug("error writing response", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -103,7 +158,7 @@ func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Requ
 	}
 	var JSONstr models.Metrics
 	if err := JSONstr.JSONDecode(req.Body); err != nil {
-		logger.Log.Debug("cannot decode request JSON body", zap.Error(err))
+		h.l.Debug("cannot decode request JSON body", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -120,14 +175,14 @@ func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Requ
 	var buf bytes.Buffer
 	errson := val.JSONEncodeBytes(io.Writer(&buf))
 	if errson != nil {
-		logger.Log.Debug("error encoding response", zap.Error(errson))
+		h.l.Debug("error encoding response", zap.Error(errson))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	res.Header().Add("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 	if _, err := io.WriteString(res, buf.String()); err != nil {
-		logger.Log.Debug("error writing response", zap.Error(err))
+		h.l.Debug("error writing response", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -202,7 +257,7 @@ func (h *HandlersServer) mainPageGetPlain(res http.ResponseWriter, req *http.Req
 	}
 	res.WriteHeader(http.StatusOK)
 	if _, err := io.WriteString(res, val); err != nil {
-		logger.Log.Debug("error writing response", zap.Error(err))
+		h.l.Debug("error writing response", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -223,7 +278,7 @@ func (h *HandlersServer) mainPage(res http.ResponseWriter, req *http.Request) {
 		}
 		res.WriteHeader(http.StatusOK)
 		if _, err := res.Write([]byte(val)); err != nil {
-			logger.Log.Debug("error writing response", zap.Error(err))
+			h.l.Debug("error writing response", zap.Error(err))
 			res.WriteHeader(http.StatusInternalServerError)
 			return
 		}

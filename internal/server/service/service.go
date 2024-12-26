@@ -9,17 +9,17 @@ import (
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
 )
 
-type ServerMetricsStorage interface {
+type serverMetricsStorage interface {
 	Add(string, valuemetric.ValueMetric) valuemetric.ValueMetric
 	Get(string) (valuemetric.ValueMetric, error)
 	ReadAll(memstorage.FuncReadAllMetric) error
 }
 
 type HandlerStore struct {
-	store ServerMetricsStorage
+	store serverMetricsStorage
 }
 
-func NewHandlerStore(store ServerMetricsStorage) *HandlerStore {
+func NewHandlerStore(store serverMetricsStorage) *HandlerStore {
 	h := new(HandlerStore)
 	h.store = store
 	return h
@@ -106,7 +106,7 @@ func (h *HandlerStore) GetAllStore() (string, error) {
 	var valstr string
 	err := h.store.ReadAll(func(key string, val valuemetric.ValueMetric) error {
 		_, value := valuemetric.ConvertValueMetricToPlain(val)
-		valstr += (key + " : " + value + "\n")
+		valstr += fmt.Sprintf("%s : %s\n", key, value)
 		return nil
 	})
 	if err != nil {

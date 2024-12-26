@@ -15,11 +15,13 @@ type Config struct {
 	ContentJSON    bool
 }
 
-const AddressDefault string = ":8080"
-const ReportIntervalDefault int64 = 10
-const PollIntervalDefault int64 = 2
-const LevelDefault string = "info"
-const ContentJSONDefault bool = true
+const (
+	AddressDefault        string = ":8080"
+	ReportIntervalDefault int64  = 10
+	PollIntervalDefault   int64  = 2
+	LevelDefault          string = "info"
+	ContentJSONDefault    bool   = true
+)
 
 func GetConfig() *Config {
 	cfg := new(Config)

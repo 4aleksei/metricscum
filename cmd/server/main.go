@@ -6,11 +6,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/4aleksei/metricscum/internal/common/filesreadwrite"
-	"github.com/4aleksei/metricscum/internal/common/jsonencdec"
-
 	"github.com/4aleksei/metricscum/internal/common/logger"
 	"github.com/4aleksei/metricscum/internal/common/repository"
+	"github.com/4aleksei/metricscum/internal/common/repository/longtermfile"
+	"github.com/4aleksei/metricscum/internal/common/streams/compressors/zipdata"
+	"github.com/4aleksei/metricscum/internal/common/streams/encoders/jsonencdec"
+	"github.com/4aleksei/metricscum/internal/common/streams/sources/singlefile"
 	"github.com/4aleksei/metricscum/internal/server/config"
 	"github.com/4aleksei/metricscum/internal/server/handlers"
 	"github.com/4aleksei/metricscum/internal/server/service"
@@ -25,17 +26,21 @@ func main() {
 func run() error {
 	cfg := config.GetConfig()
 
-	if err := logger.Initialize(cfg.Level); err != nil {
+	l, err := logger.NewLog(cfg.Level)
+	if err != nil {
 		return err
 	}
-	encoder := jsonencdec.NewJSONEncDec()
-	fileWork := filesreadwrite.NewFileStorage(cfg.FilePath, encoder)
+	fileWork := longtermfile.NewLongTerm(singlefile.NewReader(cfg.FilePath),
+		jsonencdec.NewReader(), singlefile.NewWriter(cfg.FilePath), jsonencdec.NewWriter())
 
-	store := repository.NewStoreMuxFiles(&cfg.Repcfg, fileWork)
+	fileWork.UseForWriter(zipdata.NewWriter())
+	fileWork.UseForReader(zipdata.NewReader())
+
+	store := repository.NewStoreMuxFiles(&cfg.Repcfg, l, fileWork)
 	store.DataRun()
 
 	metricsService := service.NewHandlerStore(store)
-	server := handlers.NewHandlers(metricsService, cfg)
+	server := handlers.NewHandlers(metricsService, cfg, l)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

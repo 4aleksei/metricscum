@@ -8,28 +8,32 @@ import (
 	"sync"
 	"time"
 
-	"github.com/4aleksei/metricscum/internal/common/logger"
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
 	"go.uber.org/zap"
 )
 
-type LongtermStorage interface {
-	OpenWriter() error
-	OpenReader() error
-	WriteData(*models.Metrics) error
-	ReadData(*models.Metrics) error
-	Close() error
-}
+type (
+	longtermStorage interface {
+		OpenWriter() error
+		OpenReader() error
+		WriteData(*models.Metrics) error
+		ReadData(*models.Metrics) error
+		CloseRead() error
+		CloseWrite() error
+	}
 
-type Config struct {
-	Interval int64
-	Restore  bool
-}
+	Config struct {
+		Interval int64
+		Restore  bool
+	}
+)
 
-const WriteIntervalDefault int64 = 300
-const RestoreDefault bool = true
+const (
+	WriteIntervalDefault int64 = 300
+	RestoreDefault       bool  = true
+)
 
 func ReadConfigFlag(cfg *Config) {
 	flag.Int64Var(&cfg.Interval, "i", WriteIntervalDefault, "Write data Interval")
@@ -61,7 +65,8 @@ type MemStorageMuxLongTerm struct {
 	store       *memstorage.MemStorage
 	mux         *sync.Mutex
 	cfg         *Config
-	filestorage LongtermStorage
+	filestorage longtermStorage
+	l           *zap.Logger
 }
 
 func (storage *MemStorageMuxLongTerm) Add(name string, val valuemetric.ValueMetric) valuemetric.ValueMetric {
@@ -94,15 +99,20 @@ func (storage *MemStorageMuxLongTerm) ReadAllClearCounters(prog memstorage.FuncR
 func (storage *MemStorageMuxLongTerm) doWriteData() {
 	err := storage.filestorage.OpenWriter()
 	if err != nil {
-		logger.Log.Debug("error open source", zap.Error(err))
+		storage.l.Debug("error open source", zap.Error(err))
 		return
 	}
-	defer func() { storage.filestorage.Close() }()
+	defer func() {
+		if err := storage.filestorage.CloseWrite(); err != nil {
+			storage.l.Debug("error writing data", zap.Error(err))
+		}
+	}()
+
 	valNewModel := new(models.Metrics)
 	err = storage.store.ReadAll(func(key string, val valuemetric.ValueMetric) error {
 		valNewModel.ConvertMetricToModel(key, val)
 		if errson := storage.filestorage.WriteData(valNewModel); errson != nil {
-			logger.Log.Debug("error writing data", zap.Error(errson))
+			storage.l.Debug("error writing data", zap.Error(errson))
 			return err
 		}
 		return nil
@@ -115,10 +125,14 @@ func (storage *MemStorageMuxLongTerm) doWriteData() {
 func (storage *MemStorageMuxLongTerm) LoadData() error {
 	err := storage.filestorage.OpenReader()
 	if err != nil {
-		logger.Log.Debug("error open source", zap.Error(err))
+		storage.l.Debug("error open source", zap.Error(err))
 		return err
 	}
-	defer storage.filestorage.Close()
+	defer func() {
+		if err := storage.filestorage.CloseRead(); err != nil {
+			storage.l.Debug("error writing data", zap.Error(err))
+		}
+	}()
 
 	valNewModel := new(models.Metrics)
 	for {
@@ -163,11 +177,12 @@ func (storage *MemStorageMuxLongTerm) DataRun() {
 	}
 }
 
-func NewStoreMuxFiles(cfg *Config, ltstore LongtermStorage) *MemStorageMuxLongTerm {
+func NewStoreMuxFiles(cfg *Config, l *zap.Logger, ltstore longtermStorage) *MemStorageMuxLongTerm {
 	p := new(MemStorageMuxLongTerm)
 	p.store = memstorage.NewStore()
 	p.mux = new(sync.Mutex)
 	p.cfg = cfg
 	p.filestorage = ltstore
+	p.l = l
 	return p
 }

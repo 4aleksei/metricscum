@@ -15,10 +15,11 @@ type Config struct {
 	Repcfg repository.Config
 }
 
-const AddressDefault string = ":8080"
-const LevelDefault string = "debug"
-
-const FilePathDefault string = "./data.store"
+const (
+	AddressDefault  string = ":8080"
+	LevelDefault    string = "debug"
+	FilePathDefault string = "./data.store"
+)
 
 func GetConfig() *Config {
 	cfg := new(Config)

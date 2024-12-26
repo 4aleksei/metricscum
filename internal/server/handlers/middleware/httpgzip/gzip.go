@@ -4,10 +4,6 @@ import (
 	"compress/gzip"
 	"io"
 	"net/http"
-	"strings"
-
-	"github.com/4aleksei/metricscum/internal/common/logger"
-	"go.uber.org/zap"
 )
 
 type compressWriter struct {
@@ -15,7 +11,7 @@ type compressWriter struct {
 	zw *gzip.Writer
 }
 
-func newCompressWriter(w http.ResponseWriter) *compressWriter {
+func NewCompressWriter(w http.ResponseWriter) *compressWriter {
 	return &compressWriter{
 		w:  w,
 		zw: gzip.NewWriter(w),
@@ -48,7 +44,7 @@ type compressReader struct {
 	zr *gzip.Reader
 }
 
-func newCompressReader(r io.ReadCloser) (*compressReader, error) {
+func NewCompressReader(r io.ReadCloser) (*compressReader, error) {
 	zr, err := gzip.NewReader(r)
 
 	if err != nil {
@@ -70,31 +66,4 @@ func (c *compressReader) Close() error {
 		return err
 	}
 	return c.zr.Close()
-}
-
-func GzipMiddleware(next http.Handler) http.Handler {
-	gzipfn := func(w http.ResponseWriter, r *http.Request) {
-		ow := w
-		acceptEncoding := r.Header.Get("Accept-Encoding")
-		supportsGzip := strings.Contains(acceptEncoding, "gzip")
-		if supportsGzip {
-			cw := newCompressWriter(w)
-			ow = cw
-			defer cw.Close()
-		}
-		contentEncoding := r.Header.Get("Content-Encoding")
-		sendsGzip := strings.Contains(contentEncoding, "gzip")
-		if sendsGzip {
-			cr, err := newCompressReader(r.Body)
-			if err != nil {
-				logger.Log.Debug("cannot decode gzip", zap.Error(err))
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			r.Body = cr
-			defer cr.Close()
-		}
-		next.ServeHTTP(ow, r)
-	}
-	return http.HandlerFunc(gzipfn)
 }
