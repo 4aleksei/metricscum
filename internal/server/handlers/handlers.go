@@ -23,7 +23,7 @@ type (
 	HandlersServer struct {
 		store *service.HandlerStore
 		cfg   *config.Config
-		srv   *http.Server
+		Srv   *http.Server
 		l     *zap.Logger
 	}
 )
@@ -37,7 +37,7 @@ func NewHandlers(store *service.HandlerStore, cfg *config.Config, l *zap.Logger)
 	h.store = store
 	h.cfg = cfg
 	h.l = l
-	h.srv = &http.Server{
+	h.Srv = &http.Server{
 		Addr:              h.cfg.Address,
 		Handler:           h.newRouter(),
 		ReadHeaderTimeout: 2 * time.Second,
@@ -68,7 +68,7 @@ func (h *HandlersServer) withLogging(next http.Handler) http.Handler {
 }
 
 func (h *HandlersServer) Serve() error {
-	return h.srv.ListenAndServe()
+	return h.Srv.ListenAndServe()
 }
 
 func (h *HandlersServer) gzipMiddleware(next http.Handler) http.Handler {

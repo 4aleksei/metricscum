@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -48,7 +49,22 @@ func run() error {
 		sig := <-sigs
 		log.Println()
 		log.Println("Server is shutting down...", sig)
+
+		err := server.Srv.Shutdown(context.TODO())
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Println("Server has been stopped")
+		}
 		store.DataWrite()
+
+		err = l.Sync()
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Println("Logger has been flushed")
+		}
+
 		os.Exit(1)
 	}()
 
