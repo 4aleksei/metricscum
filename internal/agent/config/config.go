@@ -9,16 +9,27 @@ import (
 
 type Config struct {
 	Address        string
-	ReportInterval uint
-	PollInterval   uint
+	Level          string
+	ReportInterval int64
+	PollInterval   int64
+	ContentJSON    bool
 }
+
+const (
+	AddressDefault        string = ":8080"
+	ReportIntervalDefault int64  = 10
+	PollIntervalDefault   int64  = 2
+	LevelDefault          string = "info"
+	ContentJSONDefault    bool   = true
+)
 
 func GetConfig() *Config {
 	cfg := new(Config)
-	flag.StringVar(&cfg.Address, "a", ":8080", "address and port to run server")
-
-	flag.UintVar(&cfg.ReportInterval, "r", 10, "ReportInterval")
-	flag.UintVar(&cfg.PollInterval, "p", 2, "PollInterval")
+	flag.StringVar(&cfg.Address, "a", AddressDefault, "address and port to run server")
+	flag.StringVar(&cfg.Level, "l", LevelDefault, "level logging")
+	flag.Int64Var(&cfg.ReportInterval, "r", ReportIntervalDefault, "ReportInterval")
+	flag.Int64Var(&cfg.PollInterval, "p", PollIntervalDefault, "PollInterval")
+	flag.BoolVar(&cfg.ContentJSON, "j", ContentJSONDefault, "ContentJSON true/false")
 
 	flag.Parse()
 
@@ -27,25 +38,21 @@ func GetConfig() *Config {
 	}
 
 	if envReportInterval := os.Getenv("REPORT_INTERVAL"); envReportInterval != "" {
-
 		val, err := strconv.Atoi(envReportInterval)
 		if err != nil {
 			log.Fatalln("Error in converting env report interval to int: ", err)
 		} else {
-			cfg.ReportInterval = uint(val)
+			cfg.ReportInterval = int64(val)
 		}
-
 	}
 
 	if envPollInterval := os.Getenv("POLL_INTERVAL"); envPollInterval != "" {
-
 		val, err := strconv.Atoi(envPollInterval)
 		if err != nil {
 			log.Fatalln("Error in converting env report interval to int: ", err)
 		} else {
-			cfg.PollInterval = uint(val)
+			cfg.PollInterval = int64(val)
 		}
 	}
-
 	return cfg
 }

@@ -2,200 +2,187 @@ package repository
 
 import (
 	"errors"
+	"flag"
+	"os"
 	"strconv"
 	"sync"
+	"time"
+
+	"github.com/4aleksei/metricscum/internal/common/models"
+	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
+	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
+	"go.uber.org/zap"
 )
 
-type GaugeMetric float64
-type CounterMetric int64
+type (
+	longtermStorage interface {
+		OpenWriter() error
+		OpenReader() error
+		WriteData(*models.Metrics) error
+		ReadData(*models.Metrics) error
+		CloseRead() error
+		CloseWrite() error
+	}
 
-type valueKind int
+	Config struct {
+		Interval int64
+		Restore  bool
+	}
+)
 
 const (
-	kindBadEmpty valueKind = iota
-	kindInt64
-	kindFloat64
+	WriteIntervalDefault int64 = 300
+	RestoreDefault       bool  = true
 )
 
-type valueMetric struct {
-	kind       valueKind
-	valueFloat GaugeMetric
-	valueInt   CounterMetric
+func ReadConfigFlag(cfg *Config) {
+	flag.Int64Var(&cfg.Interval, "i", WriteIntervalDefault, "Write data Interval")
+	flag.BoolVar(&cfg.Restore, "r", RestoreDefault, "Restore data true/false")
 }
 
-type FuncReadAllMetric func(typename string, name string, value string) error
-
-var (
-	ErrNotFoundName = errors.New("not found name")
-)
-
-type MemStorage struct {
-	values map[string]valueMetric
-}
-
-type MemStorageMux struct {
-	store *MemStorage
-	mux   *sync.Mutex
-}
-
-func (storage *MemStorage) Update(name string, val GaugeMetric) {
-
-	if entry, ok := storage.values[name]; ok {
-		entry.kind = kindFloat64
-		entry.valueFloat = val
-		storage.values[name] = entry
-
-	} else {
-		storage.values[name] = valueMetric{kind: kindFloat64, valueFloat: val}
-	}
-
-}
-
-func (storage *MemStorage) Add(name string, val CounterMetric) {
-	if entry, ok := storage.values[name]; ok {
-
-		entry.kind = kindInt64
-		entry.valueInt += val
-		storage.values[name] = entry
-
-	} else {
-		storage.values[name] = valueMetric{kind: kindInt64, valueInt: val}
-	}
-
-}
-
-func (storage *MemStorage) GetCounter(name string) (CounterMetric, error) {
-
-	if entry, ok := storage.values[name]; ok {
-
-		if entry.kind == kindInt64 {
-			return entry.valueInt, nil
+func ReadConfigEnv(cfg *Config) {
+	if envStoreInterval := os.Getenv("STORE_INTERVAL"); envStoreInterval != "" {
+		val, err := strconv.Atoi(envStoreInterval)
+		if err == nil {
+			if val >= 0 {
+				cfg.Interval = int64(val)
+			}
 		}
-
 	}
 
-	return 0, ErrNotFoundName
-}
+	if envRestore := os.Getenv("RESTORE"); envRestore != "" {
+		switch envRestore {
+		case "true":
+			cfg.Restore = true
 
-func (storage *MemStorage) GetGauge(name string) (GaugeMetric, error) {
-
-	if entry, ok := storage.values[name]; ok {
-
-		if entry.kind == kindFloat64 {
-			return entry.valueFloat, nil
+		case "false":
+			cfg.Restore = false
 		}
-
 	}
-	return 0, ErrNotFoundName
 }
 
-func (storage *MemStorageMux) Update(name string, val GaugeMetric) {
-	storage.mux.Lock()
-	defer storage.mux.Unlock()
-	storage.store.Update(name, val)
+type MemStorageMuxLongTerm struct {
+	store       *memstorage.MemStorage
+	mux         *sync.Mutex
+	cfg         *Config
+	filestorage longtermStorage
+	l           *zap.Logger
 }
 
-func (storage *MemStorageMux) Add(name string, val CounterMetric) {
+func (storage *MemStorageMuxLongTerm) Add(name string, val valuemetric.ValueMetric) valuemetric.ValueMetric {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	storage.store.Add(name, val)
+	valNew := storage.store.Add(name, val)
+	if storage.cfg.Interval == 0 {
+		storage.doWriteData()
+	}
+	return valNew
 }
 
-func (storage *MemStorageMux) GetCounter(name string) (CounterMetric, error) {
+func (storage *MemStorageMuxLongTerm) Get(name string) (valuemetric.ValueMetric, error) {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	return storage.store.GetCounter(name)
+	return storage.store.Get(name)
 }
 
-func (storage *MemStorageMux) GetGauge(name string) (GaugeMetric, error) {
+func (storage *MemStorageMuxLongTerm) ReadAll(prog memstorage.FuncReadAllMetric) error {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	return storage.store.GetGauge(name)
-}
-
-func (storage *MemStorageMux) ReadAll(prog FuncReadAllMetric) error {
-	storage.mux.Lock()
-	defer storage.mux.Unlock()
-
 	return storage.store.ReadAll(prog)
-
+}
+func (storage *MemStorageMuxLongTerm) ReadAllClearCounters(prog memstorage.FuncReadAllMetric) error {
+	storage.mux.Lock()
+	defer storage.mux.Unlock()
+	return storage.store.ReadAllClearCounters(prog)
 }
 
-func (storage *MemStorageMux) ReadAllClearCounters(prog FuncReadAllMetric) error {
+func (storage *MemStorageMuxLongTerm) doWriteData() {
+	err := storage.filestorage.OpenWriter()
+	if err != nil {
+		storage.l.Debug("error open source", zap.Error(err))
+		return
+	}
+	defer func() {
+		if err := storage.filestorage.CloseWrite(); err != nil {
+			storage.l.Debug("error writing data", zap.Error(err))
+		}
+	}()
+
+	valNewModel := new(models.Metrics)
+	err = storage.store.ReadAll(func(key string, val valuemetric.ValueMetric) error {
+		valNewModel.ConvertMetricToModel(key, val)
+		if errson := storage.filestorage.WriteData(valNewModel); errson != nil {
+			storage.l.Debug("error writing data", zap.Error(errson))
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return
+	}
+}
+
+func (storage *MemStorageMuxLongTerm) LoadData() error {
+	err := storage.filestorage.OpenReader()
+	if err != nil {
+		storage.l.Debug("error open source", zap.Error(err))
+		return err
+	}
+	defer func() {
+		if err := storage.filestorage.CloseRead(); err != nil {
+			storage.l.Debug("error writing data", zap.Error(err))
+		}
+	}()
+
+	valNewModel := new(models.Metrics)
+	for {
+		if errson := storage.filestorage.ReadData(valNewModel); errson != nil {
+			return errson
+		}
+		kind, errKind := valuemetric.GetKind(valNewModel.MType)
+		if errKind != nil {
+			return errKind
+		}
+		if valNewModel.ID == "" {
+			return errors.New("no name")
+		}
+		val, err := valuemetric.ConvertToValueMetricInt(kind, valNewModel.Delta, valNewModel.Value)
+		if err != nil {
+			return err
+		}
+		_ = storage.store.Add(valNewModel.ID, *val)
+	}
+}
+
+func (storage *MemStorageMuxLongTerm) saveData() {
+	for {
+		time.Sleep(time.Duration(storage.cfg.Interval) * time.Second)
+		storage.DataWrite()
+	}
+}
+
+func (storage *MemStorageMuxLongTerm) DataWrite() {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
 
-	return storage.store.ReadAllClearCounters(prog)
-
+	storage.doWriteData()
 }
 
-func (storage *MemStorage) ReadAllClearCounters(prog FuncReadAllMetric) error {
-
-	for name, val := range storage.values {
-
-		var valstr string
-		var ty string
-		switch val.kind {
-		case kindFloat64:
-			valstr = strconv.FormatFloat(float64(val.valueFloat), 'f', -1, 64)
-			ty = "gauge"
-		case kindInt64:
-			valstr = strconv.FormatInt(int64(val.valueInt), 10)
-			ty = "counter"
-		default:
-			continue
-		}
-
-		err := prog(ty, name, valstr)
-		if err != nil {
-			return err
-		}
-		if val.kind == kindInt64 {
-			val.valueInt = 0
-			storage.values[name] = val
-		}
-
+func (storage *MemStorageMuxLongTerm) DataRun() {
+	if storage.cfg.Restore {
+		_ = storage.LoadData()
 	}
-
-	return nil
-}
-
-func (storage *MemStorage) ReadAll(prog FuncReadAllMetric) error {
-
-	for name, val := range storage.values {
-
-		var valstr string
-		var ty string
-		switch val.kind {
-		case kindFloat64:
-			valstr = strconv.FormatFloat(float64(val.valueFloat), 'f', -1, 64)
-			ty = "gauge"
-		case kindInt64:
-			valstr = strconv.FormatInt(int64(val.valueInt), 10)
-			ty = "counter"
-		default:
-			continue
-		}
-
-		err := prog(ty, name, valstr)
-		if err != nil {
-			return err
-		}
-
+	if storage.cfg.Interval > 0 {
+		go storage.saveData()
 	}
-
-	return nil
 }
 
-func NewStore() *MemStorage {
-	p := new(MemStorage)
-	p.values = make(map[string]valueMetric)
-	return p
-}
-
-func NewStoreMux() *MemStorageMux {
-	p := new(MemStorageMux)
-	p.store = NewStore()
+func NewStoreMuxFiles(cfg *Config, l *zap.Logger, ltstore longtermStorage) *MemStorageMuxLongTerm {
+	p := new(MemStorageMuxLongTerm)
+	p.store = memstorage.NewStore()
 	p.mux = new(sync.Mutex)
+	p.cfg = cfg
+	p.filestorage = ltstore
+	p.l = l
 	return p
 }
