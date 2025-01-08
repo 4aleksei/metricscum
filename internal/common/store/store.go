@@ -19,20 +19,21 @@ type (
 	}
 
 	Config struct {
-		DATABASE_DSN string
+		databaseDSN string
 	}
 )
 
 const (
 	//DATABASE_DSN_DEFAULT string = "host=localhost user=metrics dbname=dbname password=metricspassword  sslmode=disable"
-
-	DATABASE_DSN_DEFAULT string = "postgresql://localhost/dbname?user=metrics&password=metricspassword"
+	//postgresql://localhost/dbname?user=metrics&password=metricspassword
+	databaseDSNDefault string = ""
 )
 
 func NewDB(cfg Config) (*DB, error) {
-	//db, err := sqlx.Connect("postgres", "user=metrics dbname=dbname  sslmode=disable")
-	//"host=localhost user=metrics dbname=dbname password=metricspassword  sslmode=disable"
-	db, err := sqlx.Open("pgx", cfg.DATABASE_DSN)
+	if cfg.databaseDSN == "" {
+		return &DB{DB: nil}, nil
+	}
+	db, err := sqlx.Open("pgx", cfg.databaseDSN)
 	if err != nil {
 		return nil, err
 	}
@@ -45,11 +46,11 @@ func NewDB(cfg Config) (*DB, error) {
 }
 
 func ReadConfigFlag(cfg *Config) {
-	flag.StringVar(&cfg.DATABASE_DSN, "d", DATABASE_DSN_DEFAULT, "DATABASE_DSN")
+	flag.StringVar(&cfg.databaseDSN, "d", databaseDSNDefault, "DATABASE_DSN")
 }
 
 func ReadConfigEnv(cfg *Config) {
 	if envDBADDR := os.Getenv("DATABASE_DSN"); envDBADDR != "" {
-		cfg.DATABASE_DSN = envDBADDR
+		cfg.databaseDSN = envDBADDR
 	}
 }

@@ -33,6 +33,7 @@ func NewHandlerStore(store serverMetricsStorage, db *store.DB) *HandlerStore {
 var (
 	ErrBadValue = errors.New("invalid value")
 	ErrBadName  = errors.New("no name")
+	ErrNoDb     = errors.New("no db")
 )
 
 func (h *HandlerStore) CheckType(s string) error {
@@ -121,6 +122,9 @@ func (h *HandlerStore) GetAllStore() (string, error) {
 }
 
 func (h *HandlerStore) GetPingDB() error {
+	if h.db.DB == nil {
+		return ErrNoDb
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 	err := h.db.DB.PingContext(ctx)
