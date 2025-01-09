@@ -61,7 +61,7 @@ func Test_handlers_mainHTTPPlain(t *testing.T) {
 		method string
 		url    string
 	}
-	store := service.NewHandlerStore(memstorage.NewStore())
+	store := service.NewHandlerStore(memstorage.NewStore(), nil)
 	h := new(HandlersServer)
 	h.store = store
 	var errL error
@@ -115,7 +115,7 @@ func Test_handlers_mainHTTPJSON(t *testing.T) {
 		contentType string
 		contentEnc  string
 	}
-	store := service.NewHandlerStore(memstorage.NewStore())
+	store := service.NewHandlerStore(memstorage.NewStore(), nil)
 	h := new(HandlersServer)
 	h.store = store
 	var errL error

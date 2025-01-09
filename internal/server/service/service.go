@@ -1,12 +1,15 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
+	"github.com/4aleksei/metricscum/internal/common/store"
 )
 
 type serverMetricsStorage interface {
@@ -17,17 +20,20 @@ type serverMetricsStorage interface {
 
 type HandlerStore struct {
 	store serverMetricsStorage
+	db    *store.DB
 }
 
-func NewHandlerStore(store serverMetricsStorage) *HandlerStore {
+func NewHandlerStore(store serverMetricsStorage, db *store.DB) *HandlerStore {
 	h := new(HandlerStore)
 	h.store = store
+	h.db = db
 	return h
 }
 
 var (
 	ErrBadValue = errors.New("invalid value")
 	ErrBadName  = errors.New("no name")
+	ErrNoDB     = errors.New("no db")
 )
 
 func (h *HandlerStore) CheckType(s string) error {
@@ -113,4 +119,13 @@ func (h *HandlerStore) GetAllStore() (string, error) {
 		return "", err
 	}
 	return valstr, nil
+}
+
+func (h *HandlerStore) GetPingDB(ctxPrnt context.Context) error {
+	if h.db.DB == nil {
+		return ErrNoDB
+	}
+	ctx, cancel := context.WithTimeout(ctxPrnt, 500*time.Millisecond)
+	defer cancel()
+	return h.db.DB.PingContext(ctx)
 }
