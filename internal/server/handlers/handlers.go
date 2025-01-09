@@ -265,7 +265,7 @@ func (h *HandlersServer) mainPageGetPlain(res http.ResponseWriter, req *http.Req
 }
 
 func (h *HandlersServer) mainPingDB(res http.ResponseWriter, req *http.Request) {
-	err := h.store.GetPingDB()
+	err := h.store.GetPingDB(req.Context())
 	if err != nil {
 		h.l.Debug("error ping db", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)

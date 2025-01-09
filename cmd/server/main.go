@@ -83,7 +83,7 @@ func run() error {
 			log.Println("Logger has been flushed")
 		}
 
-		os.Exit(1)
+		os.Exit(0)
 	}()
 
 	return server.Serve()
