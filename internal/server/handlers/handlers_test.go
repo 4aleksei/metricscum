@@ -61,7 +61,7 @@ func Test_handlers_mainHTTPPlain(t *testing.T) {
 		method string
 		url    string
 	}
-	store := service.NewHandlerStore(memstorage.NewStore(), nil)
+	store := service.NewHandlerStore(memstorage.NewStore())
 	h := new(HandlersServer)
 	h.store = store
 	var errL error
@@ -115,7 +115,7 @@ func Test_handlers_mainHTTPJSON(t *testing.T) {
 		contentType string
 		contentEnc  string
 	}
-	store := service.NewHandlerStore(memstorage.NewStore(), nil)
+	store := service.NewHandlerStore(memstorage.NewStore())
 	h := new(HandlersServer)
 	h.store = store
 	var errL error
@@ -134,6 +134,9 @@ func Test_handlers_mainHTTPJSON(t *testing.T) {
 		{name: "JSON Test No3", req: request{method: http.MethodPost, url: "/value/", body: " {\"id\":\"test1\" , \"type\":\"counter\" }  ", contentType: "application/json"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: " {\"id\":\"test1\" , \"type\":\"counter\" , \"delta\":100 }  "}},
 		{name: "JSON Test No4", req: request{method: http.MethodPost, url: "/value/", body: " {\"id\":\"test2\" , \"type\":\"counter\" }  ", contentType: "application/json"}, want: want{statusCode: http.StatusNotFound, contentType: "", body: ""}},
 		{name: "JSON Test No5", req: request{method: http.MethodPost, url: "/update/", body: " {\"id\":\"test5\" , \"type\":\"gauge\" , \"value\": 10.10 }  ", contentType: "application/json", contentEnc: "gzip"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: "{\"id\":\"test5\" , \"type\":\"gauge\" , \"value\": 10.10 } ", contentEnc: "gzip"}},
+
+		{name: "JSON Test No6", req: request{method: http.MethodPost, url: "/value/", body: " {\"id\":\"test5\" , \"type\":\"gauge\" }  ", contentType: "application/json", contentEnc: "gzip"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: "{\"id\":\"test5\" , \"type\":\"gauge\" , \"value\": 10.10 } ", contentEnc: "gzip"}},
+		{name: "JSON Test No7", req: request{method: http.MethodPost, url: "/value/", body: " {\"id\":\"test5\" , \"type\":\"gauge\" }  ", contentType: "application/json"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: "{\"id\":\"test5\" , \"type\":\"gauge\" , \"value\": 10.10 } "}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

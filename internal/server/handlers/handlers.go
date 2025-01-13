@@ -169,6 +169,7 @@ func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Requ
 			http.Error(res, "Invalid request!", http.StatusNotFound)
 			return
 		}
+		h.l.Debug("cannot decode GetValueModel request JSON body", zap.Error(err))
 		http.Error(res, "Invalid request!", http.StatusBadRequest)
 		return
 	}
@@ -247,6 +248,7 @@ func (h *HandlersServer) mainPageGetPlain(res http.ResponseWriter, req *http.Req
 	}
 	val, err := h.store.GetValuePlain(name, typeVal)
 	if err != nil {
+		h.l.Debug("error get val", zap.Error(err))
 		http.Error(res, "Not found value!", http.StatusNotFound)
 		return
 	}

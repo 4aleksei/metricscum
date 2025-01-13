@@ -9,24 +9,22 @@ import (
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
-	"github.com/4aleksei/metricscum/internal/common/store"
 )
 
 type serverMetricsStorage interface {
-	Add(string, valuemetric.ValueMetric) valuemetric.ValueMetric
+	Add(string, valuemetric.ValueMetric) (valuemetric.ValueMetric, error)
 	Get(string) (valuemetric.ValueMetric, error)
 	ReadAll(memstorage.FuncReadAllMetric) error
+	PingContext(context.Context) error
 }
 
 type HandlerStore struct {
 	store serverMetricsStorage
-	db    *store.DB
 }
 
-func NewHandlerStore(store serverMetricsStorage, db *store.DB) *HandlerStore {
+func NewHandlerStore(store serverMetricsStorage) *HandlerStore {
 	h := new(HandlerStore)
 	h.store = store
-	h.db = db
 	return h
 }
 
@@ -56,7 +54,11 @@ func (h *HandlerStore) SetValueModel(valModel models.Metrics) (*models.Metrics, 
 	if err != nil {
 		return nil, fmt.Errorf("failed %w", err)
 	}
-	newval := h.store.Add(valModel.ID, *val)
+	newval, errA := h.store.Add(valModel.ID, *val)
+	if errA != nil {
+		return nil, fmt.Errorf("add failed %w", errA)
+	}
+
 	valNewModel := new(models.Metrics)
 	valNewModel.ConvertMetricToModel(valModel.ID, newval)
 	return valNewModel, nil
@@ -65,7 +67,7 @@ func (h *HandlerStore) SetValueModel(valModel models.Metrics) (*models.Metrics, 
 func (h *HandlerStore) GetValueModel(valModel models.Metrics) (*models.Metrics, error) {
 	kind, errKind := valuemetric.GetKind(valModel.MType)
 	if errKind != nil {
-		return nil, fmt.Errorf("failed %w", errKind)
+		return nil, fmt.Errorf("kind failed %w", errKind)
 	}
 	if valModel.ID == "" {
 		return nil, fmt.Errorf("failed %w", ErrBadName)
@@ -85,13 +87,16 @@ func (h *HandlerStore) GetValueModel(valModel models.Metrics) (*models.Metrics, 
 func (h *HandlerStore) RecievePlainValue(typeVal, name, valstr string) error {
 	kind, errKind := valuemetric.GetKind(typeVal)
 	if errKind != nil {
-		return fmt.Errorf("failed %w", errKind)
+		return fmt.Errorf("kind failed %w", errKind)
 	}
 	val, err := valuemetric.ConvertToValueMetric(kind, valstr)
 	if err != nil {
 		return fmt.Errorf("failed %w", err)
 	}
-	h.store.Add(name, *val)
+	_, err = h.store.Add(name, *val)
+	if err != nil {
+		return fmt.Errorf("failed %w", err)
+	}
 	return nil
 }
 
@@ -101,8 +106,9 @@ func (h *HandlerStore) GetValuePlain(name, typeVal string) (string, error) {
 		return "", fmt.Errorf("failed %w", err)
 	}
 	typeKind, errKind := valuemetric.GetKind(typeVal)
+
 	if (errKind != nil) || (!val.KindOf(typeKind)) {
-		return "", fmt.Errorf("failed %w", errKind)
+		return "", fmt.Errorf("kind failed %w", errKind)
 	}
 	_, valstr := valuemetric.ConvertValueMetricToPlain(val)
 	return valstr, nil
@@ -122,10 +128,7 @@ func (h *HandlerStore) GetAllStore() (string, error) {
 }
 
 func (h *HandlerStore) GetPingDB(ctxPrnt context.Context) error {
-	if h.db.DB == nil {
-		return ErrNoDB
-	}
 	ctx, cancel := context.WithTimeout(ctxPrnt, 500*time.Millisecond)
 	defer cancel()
-	return h.db.DB.PingContext(ctx)
+	return h.store.PingContext(ctx)
 }

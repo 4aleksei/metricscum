@@ -1,6 +1,7 @@
 package memstorage
 
 import (
+	"context"
 	"errors"
 
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
@@ -16,14 +17,18 @@ var (
 	ErrNotFoundName = errors.New("not found name")
 )
 
-func (storage *MemStorage) Add(name string, val valuemetric.ValueMetric) valuemetric.ValueMetric {
+func (storage *MemStorage) PingContext(ctx context.Context) error {
+	return nil
+}
+
+func (storage *MemStorage) Add(name string, val valuemetric.ValueMetric) (valuemetric.ValueMetric, error) {
 	if entry, ok := storage.values[name]; ok {
 		entry.DoUpdate(val)
 		storage.values[name] = entry
-		return entry
+		return entry, nil
 	}
 	storage.values[name] = val
-	return val
+	return val, nil
 }
 
 func (storage *MemStorage) Get(name string) (valuemetric.ValueMetric, error) {
