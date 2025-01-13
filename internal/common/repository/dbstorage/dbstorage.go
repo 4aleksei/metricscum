@@ -70,7 +70,6 @@ func (storage *DBStorage) Get(name string) (valuemetric.ValueMetric, error) {
 }
 
 func (storage *DBStorage) ReadAll(prog memstorage.FuncReadAllMetric) error {
-
 	err := storage.db.SelectValueAll(func(n string, k int, d int64, v float64) error {
 		kind, errK := valuemetric.GetKindInt(k)
 		if errK != nil {

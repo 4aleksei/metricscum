@@ -7,12 +7,8 @@ import (
 	"os"
 	"time"
 
-	//_ "github.com/jackc/pgx"
-	"github.com/jmoiron/sqlx"
-
-	//"database/sql"
-
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
 )
 
 type (
@@ -37,8 +33,6 @@ type (
 )
 
 const (
-	//DATABASE_DSN_DEFAULT string = "host=localhost user=metrics dbname=dbname password=metricspassword  sslmode=disable"
-	//postgresql://localhost/dbname?user=metrics&password=metricspassword
 	databaseDSNDefault string = ""
 )
 
@@ -67,12 +61,11 @@ func NewDB(cfg Config) (*DB, error) {
 }
 
 func createMetricsTable(ctx context.Context, db *sqlx.DB) error {
-
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	_, errE := tx.ExecContext(ctx, `
         CREATE TABLE IF NOT EXISTS metrics (
             name varchar(128)  not null,
@@ -126,7 +119,7 @@ func setfloat64(f *float64) float64 {
 }
 
 func (tx *TX) Upsert(name string, kind int, delta *int64, value *float64, prog func(n string, k int, d int64, v float64) error) error {
-	var m Metrics = Metrics{
+	var m = Metrics{
 		Name:  name,
 		Kind:  kind,
 		Delta: sql.NullInt64{Valid: delta != nil, Int64: setint64(delta)},
@@ -136,20 +129,22 @@ func (tx *TX) Upsert(name string, kind int, delta *int64, value *float64, prog f
 	var onConflictStatement string
 	sqlStr := `INSERT INTO metrics (name, kind, delta, value , updated_at) VALUES (:name,:kind,:delta,:value,now())`
 	if delta != nil {
-		onConflictStatement = ` ON CONFLICT (name, kind) DO UPDATE SET delta=metrics.delta+excluded.delta,  updated_at = now() RETURNING name, kind, delta, value`
+		onConflictStatement = ` ON CONFLICT (name, kind) 
+		DO UPDATE SET delta=metrics.delta+excluded.delta,  updated_at = now() RETURNING name, kind, delta, value`
 	} else {
-		onConflictStatement = ` ON CONFLICT (name, kind) DO UPDATE SET  value=excluded.value , updated_at = now() RETURNING name, kind, delta, value`
+		onConflictStatement = ` ON CONFLICT (name, kind) 
+		DO UPDATE SET  value=excluded.value , updated_at = now() RETURNING name, kind, delta, value`
 	}
 	query, queryArgs, errB := tx.tx.BindNamed(sqlStr, m)
 	if errB != nil {
-		tx.tx.Rollback()
+		_ = tx.tx.Rollback()
 		return errB
 	}
 	query = tx.tx.Rebind(query)
-	query = query + onConflictStatement
+	query += onConflictStatement
 	rows, err := tx.tx.Queryx(query, queryArgs...)
 	if err != nil {
-		tx.tx.Rollback()
+		_ = tx.tx.Rollback()
 		return err
 	}
 	defer rows.Close()
@@ -163,7 +158,7 @@ func (tx *TX) Upsert(name string, kind int, delta *int64, value *float64, prog f
 			return errP
 		}
 	} else {
-		tx.tx.Rollback()
+		_ = tx.tx.Rollback()
 		return sql.ErrNoRows
 	}
 	return nil
@@ -178,7 +173,6 @@ func (tx *TX) EndTx() error {
 }
 
 func (d *DB) SelectValue(name string, prog func(n string, k int, d int64, v float64) error) error {
-
 	row := d.DB.QueryRowx("SELECT name , kind , delta , value  FROM  metrics WHERE name=$1 LIMIT 1", name)
 	if row != nil {
 		var m Metrics
@@ -197,7 +191,6 @@ func (d *DB) SelectValue(name string, prog func(n string, k int, d int64, v floa
 }
 
 func (d *DB) SelectValueAll(prog func(n string, k int, d int64, v float64) error) error {
-
 	rows, err := d.DB.Queryx("SELECT name , kind , delta , value  FROM metrics")
 	if err != nil {
 		return err
@@ -215,8 +208,6 @@ func (d *DB) SelectValueAll(prog func(n string, k int, d int64, v float64) error
 		if errK != nil {
 			return errK
 		}
-
 	}
-
 	return nil
 }

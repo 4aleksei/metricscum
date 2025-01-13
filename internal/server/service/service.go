@@ -127,8 +127,10 @@ func (h *HandlerStore) GetAllStore() (string, error) {
 	return valstr, nil
 }
 
+const defaultTimeoutPing int = 500
+
 func (h *HandlerStore) GetPingDB(ctxPrnt context.Context) error {
-	ctx, cancel := context.WithTimeout(ctxPrnt, 500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(ctxPrnt, time.Duration(defaultTimeoutPing)*time.Millisecond)
 	defer cancel()
 	return h.store.PingContext(ctx)
 }

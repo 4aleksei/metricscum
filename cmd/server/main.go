@@ -15,14 +15,12 @@ import (
 )
 
 func main() {
-
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func run() error {
-
 	cfg := config.GetConfig()
 	l, err := logger.NewLog(cfg.Level)
 	if err != nil {
@@ -63,9 +61,7 @@ func run() error {
 		} else {
 			log.Println("Logger has been flushed")
 		}
-
 		os.Exit(0)
 	}()
-
 	return server.Serve()
 }
