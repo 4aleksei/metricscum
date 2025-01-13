@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"os"
@@ -69,14 +70,18 @@ type MemStorageMuxLongTerm struct {
 	l           *zap.Logger
 }
 
-func (storage *MemStorageMuxLongTerm) Add(name string, val valuemetric.ValueMetric) valuemetric.ValueMetric {
+func (storage *MemStorageMuxLongTerm) PingContext(ctx context.Context) error {
+	return nil
+}
+
+func (storage *MemStorageMuxLongTerm) Add(name string, val valuemetric.ValueMetric) (valuemetric.ValueMetric, error) {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	valNew := storage.store.Add(name, val)
+	valNew, _ := storage.store.Add(name, val)
 	if storage.cfg.Interval == 0 {
 		storage.doWriteData()
 	}
-	return valNew
+	return valNew, nil
 }
 
 func (storage *MemStorageMuxLongTerm) Get(name string) (valuemetric.ValueMetric, error) {
@@ -150,7 +155,7 @@ func (storage *MemStorageMuxLongTerm) LoadData() error {
 		if err != nil {
 			return err
 		}
-		_ = storage.store.Add(valNewModel.ID, *val)
+		_, _ = storage.store.Add(valNewModel.ID, *val)
 	}
 }
 

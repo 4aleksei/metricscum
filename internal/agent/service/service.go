@@ -9,7 +9,7 @@ import (
 )
 
 type AgentMetricsStorage interface {
-	Add(string, valuemetric.ValueMetric) valuemetric.ValueMetric
+	Add(string, valuemetric.ValueMetric) (valuemetric.ValueMetric, error)
 	ReadAllClearCounters(memstorage.FuncReadAllMetric) error
 }
 
@@ -29,12 +29,12 @@ var (
 
 func (h *HandlerStore) SetGauge(name string, val float64) {
 	valMetric := valuemetric.ConvertToFloatValueMetric(val)
-	_ = h.store.Add(name, *valMetric)
+	_, _ = h.store.Add(name, *valMetric)
 }
 
 func (h *HandlerStore) SetCounter(name string, val int64) {
 	valMetric := valuemetric.ConvertToIntValueMetric(val)
-	_ = h.store.Add(name, *valMetric)
+	_, _ = h.store.Add(name, *valMetric)
 }
 
 func (h *HandlerStore) RangeMetrics(prog func(string) error) error {

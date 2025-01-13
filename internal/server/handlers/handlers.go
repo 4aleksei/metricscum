@@ -111,6 +111,7 @@ func (h *HandlersServer) newRouter() http.Handler {
 	mux.Post("/*", h.mainPageError)
 	mux.Get("/value/{type}/{name}", h.mainPageGetPlain)
 	mux.Post("/value/", h.mainPageGetJSON)
+	mux.Get("/ping", h.mainPingDB)
 	mux.Get("/", h.mainPage)
 
 	return mux
@@ -168,6 +169,7 @@ func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Requ
 			http.Error(res, "Invalid request!", http.StatusNotFound)
 			return
 		}
+		h.l.Debug("cannot decode GetValueModel request JSON body", zap.Error(err))
 		http.Error(res, "Invalid request!", http.StatusBadRequest)
 		return
 	}
@@ -246,6 +248,7 @@ func (h *HandlersServer) mainPageGetPlain(res http.ResponseWriter, req *http.Req
 	}
 	val, err := h.store.GetValuePlain(name, typeVal)
 	if err != nil {
+		h.l.Debug("error get val", zap.Error(err))
 		http.Error(res, "Not found value!", http.StatusNotFound)
 		return
 	}
@@ -261,6 +264,16 @@ func (h *HandlersServer) mainPageGetPlain(res http.ResponseWriter, req *http.Req
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *HandlersServer) mainPingDB(res http.ResponseWriter, req *http.Request) {
+	err := h.store.GetPingDB(req.Context())
+	if err != nil {
+		h.l.Debug("error ping db", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
 }
 
 func (h *HandlersServer) mainPage(res http.ResponseWriter, req *http.Request) {
