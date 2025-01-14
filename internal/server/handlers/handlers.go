@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"database/sql"
 	"errors"
 	"io"
 	"net/http"
@@ -203,7 +204,7 @@ func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Requ
 	}
 	val, err := h.store.GetValueModel(JSONstr)
 	if err != nil {
-		if errors.Is(err, service.ErrBadName) || errors.Is(err, memstorage.ErrNotFoundName) {
+		if errors.Is(err, service.ErrBadName) || errors.Is(err, memstorage.ErrNotFoundName) || errors.Is(err, sql.ErrNoRows) {
 			http.Error(res, "Invalid request!", http.StatusNotFound)
 			return
 		}
