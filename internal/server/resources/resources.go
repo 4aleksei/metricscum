@@ -65,9 +65,14 @@ func CreateResouces(cfg *config.Config, l *zap.Logger) (*handleResources, error)
 
 func (hr *handleResources) Close() error {
 	if hr.FILE != nil {
-		hr.FILE.DataWrite()
-		log.Println("File has been closed")
+		err := hr.FILE.DataWrite()
+		if err != nil {
+			log.Println("Error Close File")
+		} else {
+			log.Println("File has been closed")
+		}
 	}
+
 	if hr.DB != nil {
 		err := hr.DB.DB.Close()
 		if err != nil {

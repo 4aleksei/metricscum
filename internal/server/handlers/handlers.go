@@ -29,7 +29,8 @@ type (
 )
 
 const (
-	textHTMLContent string = "text/html"
+	textHTMLContent        string = "text/html"
+	applicationJSONContent string = "application/json"
 )
 
 func NewHandlers(store *service.HandlerStore, cfg *config.Config, l *zap.Logger) *HandlersServer {
@@ -119,7 +120,7 @@ func (h *HandlersServer) newRouter() http.Handler {
 }
 
 func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request) {
-	if req.Header.Get("Content-Type") != "application/json" {
+	if req.Header.Get("Content-Type") != applicationJSONContent {
 		http.Error(res, "Bad type!", http.StatusBadRequest)
 		return
 	}
@@ -144,7 +145,7 @@ func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	res.Header().Add("Content-Type", "application/json")
+	res.Header().Add("Content-Type", "")
 	res.WriteHeader(http.StatusOK)
 	if _, err := io.WriteString(res, buf.String()); err != nil {
 		h.l.Debug("error writing response", zap.Error(err))
@@ -154,7 +155,7 @@ func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request
 }
 
 func (h *HandlersServer) mainPageJSONs(res http.ResponseWriter, req *http.Request) {
-	if req.Header.Get("Content-Type") != "application/json" {
+	if req.Header.Get("Content-Type") != applicationJSONContent {
 		http.Error(res, "Bad type!", http.StatusBadRequest)
 		return
 	}
@@ -180,7 +181,7 @@ func (h *HandlersServer) mainPageJSONs(res http.ResponseWriter, req *http.Reques
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	res.Header().Add("Content-Type", "application/json")
+	res.Header().Add("Content-Type", applicationJSONContent)
 	res.WriteHeader(http.StatusOK)
 	if _, err := io.WriteString(res, buf.String()); err != nil {
 		h.l.Debug("error writing response", zap.Error(err))
@@ -190,7 +191,7 @@ func (h *HandlersServer) mainPageJSONs(res http.ResponseWriter, req *http.Reques
 }
 
 func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Request) {
-	if req.Header.Get("Content-Type") != "application/json" {
+	if req.Header.Get("Content-Type") != applicationJSONContent {
 		http.Error(res, "Bad type!", http.StatusBadRequest)
 		return
 	}
@@ -218,7 +219,7 @@ func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Requ
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	res.Header().Add("Content-Type", "application/json")
+	res.Header().Add("Content-Type", applicationJSONContent)
 	res.WriteHeader(http.StatusOK)
 	if _, err := io.WriteString(res, buf.String()); err != nil {
 		h.l.Debug("error writing response", zap.Error(err))

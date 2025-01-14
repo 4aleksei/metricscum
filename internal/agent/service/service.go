@@ -54,3 +54,17 @@ func (h *HandlerStore) RangeMetricsJSON(prog func(*models.Metrics) error) error 
 	})
 	return err
 }
+
+func (h *HandlerStore) RangeMetricsJSONS(prog func(*[]models.Metrics) error) error {
+	resmodels := new([]models.Metrics)
+	err := h.store.ReadAllClearCounters(func(key string, val valuemetric.ValueMetric) error {
+		var valNewModel models.Metrics
+		valNewModel.ConvertMetricToModel(key, val)
+		*resmodels = append(*resmodels, valNewModel)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return prog(resmodels)
+}

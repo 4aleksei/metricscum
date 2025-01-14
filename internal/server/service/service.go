@@ -44,26 +44,10 @@ func (h *HandlerStore) CheckType(s string) error {
 }
 
 func (h *HandlerStore) SetValueSModel(valModel []models.Metrics) (*[]models.Metrics, error) {
-
-	//	kind, errKind := valuemetric.GetKind(valModel.MType)
-	//	if errKind != nil {
-	//		return nil, fmt.Errorf("failed kind %w", errKind)
-	//	}
-	//	if valModel.ID == "" {
-	//		return nil, fmt.Errorf("failed %w", ErrBadName)
-	//	}
-	//val, err := valuemetric.ConvertToValueMetricInt(kind, valModel.Delta, valModel.Value)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed %w", err)
-	//}
 	valNewModel, errA := h.store.AddMulti(valModel)
 	if errA != nil {
 		return nil, fmt.Errorf("add failed %w", errA)
 	}
-
-	//valNewModel := new(models.Metrics)
-	//valNewModel.ConvertMetricToModel(valModel.ID, newval)
-
 	return valNewModel, nil
 }
 

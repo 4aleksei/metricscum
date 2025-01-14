@@ -83,7 +83,10 @@ func (storage *MemStorageMuxLongTerm) AddMulti(modval []models.Metrics) (*[]mode
 		return nil, fmt.Errorf("failed add multi %w", err)
 	}
 	if storage.cfg.Interval == 0 {
-		storage.doWriteData()
+		err := storage.doWriteData()
+		if err != nil {
+			storage.l.Error("error write data", zap.Error(err))
+		}
 	}
 	return valNew, nil
 }
@@ -93,7 +96,10 @@ func (storage *MemStorageMuxLongTerm) Add(name string, val valuemetric.ValueMetr
 	defer storage.mux.Unlock()
 	valNew, _ := storage.store.Add(name, val)
 	if storage.cfg.Interval == 0 {
-		storage.doWriteData()
+		err := storage.doWriteData()
+		if err != nil {
+			storage.l.Error("error write data", zap.Error(err))
+		}
 	}
 	return valNew, nil
 }
@@ -177,7 +183,11 @@ func (storage *MemStorageMuxLongTerm) LoadData() error {
 func (storage *MemStorageMuxLongTerm) saveData() {
 	for {
 		time.Sleep(time.Duration(storage.cfg.Interval) * time.Second)
-		storage.DataWrite()
+		err := storage.DataWrite()
+		if err != nil {
+			storage.l.Error("error write data", zap.Error(err))
+			continue
+		}
 	}
 }
 
