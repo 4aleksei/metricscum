@@ -157,6 +157,10 @@ func (tx *TX) Upsert(name string, kind int, delta *int64, value *float64, prog f
 		if errP != nil {
 			return errP
 		}
+		err = rows.Err()
+		if err != nil {
+			return err
+		}
 	} else {
 		_ = tx.tx.Rollback()
 		return sql.ErrNoRows
@@ -208,6 +212,10 @@ func (d *DB) SelectValueAll(prog func(n string, k int, d int64, v float64) error
 		if errK != nil {
 			return errK
 		}
+	}
+	err = rows.Err()
+	if err != nil {
+		return err
 	}
 	return nil
 }

@@ -67,7 +67,7 @@ func (hr *handleResources) Close() error {
 	if hr.FILE != nil {
 		err := hr.FILE.DataWrite()
 		if err != nil {
-			log.Println("Error Close File")
+			log.Println("Error Close File ")
 		} else {
 			log.Println("File has been closed")
 		}

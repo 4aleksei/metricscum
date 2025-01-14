@@ -145,7 +145,7 @@ func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	res.Header().Add("Content-Type", "")
+	res.Header().Add("Content-Type", applicationJSONContent)
 	res.WriteHeader(http.StatusOK)
 	if _, err := io.WriteString(res, buf.String()); err != nil {
 		h.l.Debug("error writing response", zap.Error(err))
