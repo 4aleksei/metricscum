@@ -20,11 +20,41 @@ type App struct {
 	cfg  *config.Config
 }
 
+const (
+	textHTMLContent        string = "text/html"
+	applicationJSONContent string = "application/json"
+	gzipContent            string = "gzip"
+)
+
 func NewApp(store *service.HandlerStore, cfg *config.Config) *App {
 	p := new(App)
 	p.serv = store
 	p.cfg = cfg
 	return p
+}
+
+func newPostReq(ctx context.Context, client *http.Client, server string, requestBody io.Reader) error {
+	req, err := http.NewRequestWithContext(ctx, "POST", server, requestBody)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	req.Header.Set("Accept-Encoding", gzipContent)
+	req.Header.Set("Content-Encoding", gzipContent)
+	req.Header.Set("Content-Type", applicationJSONContent)
+	req.Header.Set("Accept", applicationJSONContent)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	defer resp.Body.Close()
+	_, errcoppy := io.Copy(io.Discard, resp.Body)
+	if errcoppy != nil {
+		log.Println(err)
+		return err
+	}
+	return nil
 }
 
 func (app *App) Run() error {
@@ -71,32 +101,38 @@ func (app *App) Run() error {
 			return err
 		}
 		ctx := context.Background()
-		req, err := http.NewRequestWithContext(ctx, "POST", server, &requestBody)
+		err = newPostReq(ctx, client, server, &requestBody)
 		if err != nil {
-			log.Println(err)
-			return err
-		}
-		req.Header.Set("Accept-Encoding", "gzip")
-		req.Header.Set("Content-Encoding", "gzip")
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Accept", "application/json")
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-		defer resp.Body.Close()
-		_, errcoppy := io.Copy(io.Discard, resp.Body)
-		if errcoppy != nil {
-			log.Println(err)
 			return err
 		}
 		return nil
 	}
+	var JSONModelSFunc = func(data *[]models.Metrics) error {
+		var requestBody bytes.Buffer
+		gz := gzip.NewWriter(&requestBody)
+		err := models.JSONSEncodeBytes(gz, data)
+		gz.Close()
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		ctx := context.Background()
+		serverupdates := "http://" + app.cfg.Address + "/updates/"
+		err = newPostReq(ctx, client, serverupdates, &requestBody)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
 	for {
 		time.Sleep(time.Duration(app.cfg.ReportInterval) * time.Second)
 		if app.cfg.ContentJSON {
-			_ = app.serv.RangeMetricsJSON(JSONModelFunc)
+			if app.cfg.ContentBatch {
+				_ = app.serv.RangeMetricsJSONS(JSONModelSFunc)
+			} else {
+				_ = app.serv.RangeMetricsJSON(JSONModelFunc)
+			}
 		} else {
 			_ = app.serv.RangeMetrics(plainTxtFunc)
 		}

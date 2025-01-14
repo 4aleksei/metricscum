@@ -13,6 +13,7 @@ type Config struct {
 	ReportInterval int64
 	PollInterval   int64
 	ContentJSON    bool
+	ContentBatch   bool
 }
 
 const (
@@ -21,6 +22,7 @@ const (
 	PollIntervalDefault   int64  = 2
 	LevelDefault          string = "info"
 	ContentJSONDefault    bool   = true
+	ContentBatchDefault   bool   = true
 )
 
 func GetConfig() *Config {
@@ -30,6 +32,8 @@ func GetConfig() *Config {
 	flag.Int64Var(&cfg.ReportInterval, "r", ReportIntervalDefault, "ReportInterval")
 	flag.Int64Var(&cfg.PollInterval, "p", PollIntervalDefault, "PollInterval")
 	flag.BoolVar(&cfg.ContentJSON, "j", ContentJSONDefault, "ContentJSON true/false")
+
+	flag.BoolVar(&cfg.ContentBatch, "b", ContentBatchDefault, "ContentBatch true/false")
 
 	flag.Parse()
 

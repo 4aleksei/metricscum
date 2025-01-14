@@ -9,7 +9,7 @@ import (
 )
 
 type AgentMetricsStorage interface {
-	Add(string, valuemetric.ValueMetric) valuemetric.ValueMetric
+	Add(string, valuemetric.ValueMetric) (valuemetric.ValueMetric, error)
 	ReadAllClearCounters(memstorage.FuncReadAllMetric) error
 }
 
@@ -29,12 +29,12 @@ var (
 
 func (h *HandlerStore) SetGauge(name string, val float64) {
 	valMetric := valuemetric.ConvertToFloatValueMetric(val)
-	_ = h.store.Add(name, *valMetric)
+	_, _ = h.store.Add(name, *valMetric)
 }
 
 func (h *HandlerStore) SetCounter(name string, val int64) {
 	valMetric := valuemetric.ConvertToIntValueMetric(val)
-	_ = h.store.Add(name, *valMetric)
+	_, _ = h.store.Add(name, *valMetric)
 }
 
 func (h *HandlerStore) RangeMetrics(prog func(string) error) error {
@@ -53,4 +53,18 @@ func (h *HandlerStore) RangeMetricsJSON(prog func(*models.Metrics) error) error 
 		return prog(valNewModel)
 	})
 	return err
+}
+
+func (h *HandlerStore) RangeMetricsJSONS(prog func(*[]models.Metrics) error) error {
+	resmodels := new([]models.Metrics)
+	err := h.store.ReadAllClearCounters(func(key string, val valuemetric.ValueMetric) error {
+		var valNewModel models.Metrics
+		valNewModel.ConvertMetricToModel(key, val)
+		*resmodels = append(*resmodels, valNewModel)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return prog(resmodels)
 }
