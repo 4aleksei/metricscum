@@ -106,6 +106,7 @@ func (h *HandlersServer) newRouter() http.Handler {
 	mux.Use(middleware.Recoverer)
 
 	mux.Post("/update/", h.mainPageJSON)
+	mux.Post("/updates/", h.mainPageJSONs)
 	mux.Post("/update/{type}/{name}/{value}", h.mainPostPagePlain)
 	mux.Post("/update/{type}/", h.mainPageFoundErrors)
 	mux.Post("/*", h.mainPageError)
@@ -139,6 +140,42 @@ func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request
 	}
 	var buf bytes.Buffer
 	if errson := val.JSONEncodeBytes(io.Writer(&buf)); errson != nil {
+		h.l.Debug("error encoding response", zap.Error(errson))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	res.Header().Add("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	if _, err := io.WriteString(res, buf.String()); err != nil {
+		h.l.Debug("error writing response", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *HandlersServer) mainPageJSONs(res http.ResponseWriter, req *http.Request) {
+	if req.Header.Get("Content-Type") != "application/json" {
+		http.Error(res, "Bad type!", http.StatusBadRequest)
+		return
+	}
+
+	JSONstrs, err := models.JSONSDecode(req.Body)
+	if err != nil {
+		h.l.Debug("cannot decode request JSON body", zap.Error(err))
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	val, err := h.store.SetValueSModel(JSONstrs)
+	if err != nil {
+		if errors.Is(err, service.ErrBadName) {
+			http.Error(res, "Invalid request!", http.StatusNotFound)
+			return
+		}
+		http.Error(res, "Invalid request!", http.StatusBadRequest)
+		return
+	}
+	var buf bytes.Buffer
+	if errson := models.JSONSEncodeBytes(io.Writer(&buf), val); errson != nil {
 		h.l.Debug("error encoding response", zap.Error(errson))
 		res.WriteHeader(http.StatusInternalServerError)
 		return

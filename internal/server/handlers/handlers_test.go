@@ -137,6 +137,8 @@ func Test_handlers_mainHTTPJSON(t *testing.T) {
 
 		{name: "JSON Test No6", req: request{method: http.MethodPost, url: "/value/", body: " {\"id\":\"test5\" , \"type\":\"gauge\" }  ", contentType: "application/json", contentEnc: "gzip"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: "{\"id\":\"test5\" , \"type\":\"gauge\" , \"value\": 10.10 } ", contentEnc: "gzip"}},
 		{name: "JSON Test No7", req: request{method: http.MethodPost, url: "/value/", body: " {\"id\":\"test5\" , \"type\":\"gauge\" }  ", contentType: "application/json"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: "{\"id\":\"test5\" , \"type\":\"gauge\" , \"value\": 10.10 } "}},
+
+		{name: "JSON Test No8", req: request{method: http.MethodPost, url: "/updates/", body: "[ {\"id\":\"test6\" , \"type\":\"gauge\" , \"value\": 20.20 } ,  {\"id\":\"test7\" , \"type\":\"gauge\" ,  \"value\": 20.30 } ] ", contentType: "application/json"}, want: want{statusCode: http.StatusOK, contentType: "application/json", body: "[ {\"id\":\"test6\" , \"type\":\"gauge\" , \"value\": 20.20 } ,  {\"id\":\"test7\" , \"type\":\"gauge\" , \"value\": 20.30 } ]"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

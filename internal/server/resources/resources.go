@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository"
 	"github.com/4aleksei/metricscum/internal/common/repository/dbstorage"
 	"github.com/4aleksei/metricscum/internal/common/repository/longtermfile"
@@ -23,6 +24,7 @@ type resoucesMetricsStorage interface {
 	Get(string) (valuemetric.ValueMetric, error)
 	ReadAll(memstorage.FuncReadAllMetric) error
 	PingContext(context.Context) error
+	AddMulti([]models.Metrics) (*[]models.Metrics, error)
 }
 
 type handleResources struct {
