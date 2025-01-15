@@ -131,7 +131,7 @@ func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	val, err := h.store.SetValueModel(JSONstr)
+	val, err := h.store.SetValueModel(req.Context(), JSONstr)
 	if err != nil {
 		if errors.Is(err, service.ErrBadName) {
 			http.Error(res, "Invalid request!", http.StatusNotFound)
@@ -167,7 +167,7 @@ func (h *HandlersServer) mainPageJSONs(res http.ResponseWriter, req *http.Reques
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	val, err := h.store.SetValueSModel(JSONstrs)
+	val, err := h.store.SetValueSModel(req.Context(), JSONstrs)
 	if err != nil {
 		if errors.Is(err, service.ErrBadName) {
 			http.Error(res, "Invalid request!", http.StatusNotFound)
@@ -202,7 +202,7 @@ func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Requ
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	val, err := h.store.GetValueModel(JSONstr)
+	val, err := h.store.GetValueModel(req.Context(), JSONstr)
 	if err != nil {
 		if errors.Is(err, service.ErrBadName) || errors.Is(err, memstorage.ErrNotFoundName) || errors.Is(err, sql.ErrNoRows) {
 			http.Error(res, "Invalid request!", http.StatusNotFound)
@@ -259,7 +259,7 @@ func (h *HandlersServer) mainPostPagePlain(res http.ResponseWriter, req *http.Re
 		http.Error(res, "Bad data!", http.StatusBadRequest)
 		return
 	}
-	err := h.store.RecievePlainValue(typeVal, name, value)
+	err := h.store.RecievePlainValue(req.Context(), typeVal, name, value)
 	if err != nil {
 		http.Error(res, "Bad value!", http.StatusBadRequest)
 		return
@@ -285,7 +285,7 @@ func (h *HandlersServer) mainPageGetPlain(res http.ResponseWriter, req *http.Req
 		http.Error(res, "Bad type!", http.StatusNotFound)
 		return
 	}
-	val, err := h.store.GetValuePlain(name, typeVal)
+	val, err := h.store.GetValuePlain(req.Context(), name, typeVal)
 	if err != nil {
 		h.l.Debug("error get val", zap.Error(err))
 		http.Error(res, "Not found value!", http.StatusNotFound)
@@ -317,7 +317,7 @@ func (h *HandlersServer) mainPingDB(res http.ResponseWriter, req *http.Request) 
 
 func (h *HandlersServer) mainPage(res http.ResponseWriter, req *http.Request) {
 	if req.URL.String() == "" || req.URL.String() == "/" {
-		val, err := h.store.GetAllStore()
+		val, err := h.store.GetAllStore(req.Context())
 		if err != nil {
 			http.Error(res, "Not found value!", http.StatusNotFound)
 			return

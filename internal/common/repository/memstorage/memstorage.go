@@ -29,7 +29,7 @@ var (
 	ErrNoDB     = errors.New("no db")
 )
 
-func (storage *MemStorage) AddMulti(modval []models.Metrics) (*[]models.Metrics, error) {
+func (storage *MemStorage) AddMulti(ctx context.Context, modval []models.Metrics) (*[]models.Metrics, error) {
 	resmodels := new([]models.Metrics)
 	for _, valModel := range modval {
 		kind, errKind := valuemetric.GetKind(valModel.MType)
@@ -43,7 +43,7 @@ func (storage *MemStorage) AddMulti(modval []models.Metrics) (*[]models.Metrics,
 		if err != nil {
 			return nil, fmt.Errorf("failed %w", err)
 		}
-		resval, errA := storage.Add(valModel.ID, *val)
+		resval, errA := storage.Add(ctx, valModel.ID, *val)
 		if errA != nil {
 			return nil, errA
 		}
@@ -54,7 +54,7 @@ func (storage *MemStorage) AddMulti(modval []models.Metrics) (*[]models.Metrics,
 	return resmodels, nil
 }
 
-func (storage *MemStorage) Add(name string, val valuemetric.ValueMetric) (valuemetric.ValueMetric, error) {
+func (storage *MemStorage) Add(ctx context.Context, name string, val valuemetric.ValueMetric) (valuemetric.ValueMetric, error) {
 	if entry, ok := storage.values[name]; ok {
 		entry.DoUpdate(val)
 		storage.values[name] = entry
@@ -64,14 +64,14 @@ func (storage *MemStorage) Add(name string, val valuemetric.ValueMetric) (valuem
 	return val, nil
 }
 
-func (storage *MemStorage) Get(name string) (valuemetric.ValueMetric, error) {
+func (storage *MemStorage) Get(ctx context.Context, name string) (valuemetric.ValueMetric, error) {
 	if entry, ok := storage.values[name]; ok {
 		return entry, nil
 	}
 	return valuemetric.ValueMetric{}, ErrNotFoundName
 }
 
-func (storage *MemStorage) ReadAllClearCounters(prog FuncReadAllMetric) error {
+func (storage *MemStorage) ReadAllClearCounters(ctx context.Context, prog FuncReadAllMetric) error {
 	for name, entry := range storage.values {
 		err := prog(name, entry)
 		if err != nil {
@@ -82,7 +82,7 @@ func (storage *MemStorage) ReadAllClearCounters(prog FuncReadAllMetric) error {
 	return nil
 }
 
-func (storage *MemStorage) ReadAll(prog FuncReadAllMetric) error {
+func (storage *MemStorage) ReadAll(ctx context.Context, prog FuncReadAllMetric) error {
 	for name, entry := range storage.values {
 		err := prog(name, entry)
 		if err != nil {

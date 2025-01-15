@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/4aleksei/metricscum/internal/agent/config"
@@ -22,7 +23,7 @@ func run() error {
 	metricsService := service.NewHandlerStore(store)
 
 	gatherApp := gather.NewAppGather(metricsService, cfg)
-	gatherApp.RunRutine()
+	gatherApp.RunRutine(context.TODO())
 	mainHTTPClient := handlers.NewApp(metricsService, cfg)
-	return mainHTTPClient.Run()
+	return mainHTTPClient.Run(context.TODO())
 }

@@ -75,15 +75,15 @@ func (storage *MemStorageMuxLongTerm) PingContext(ctx context.Context) error {
 	return nil
 }
 
-func (storage *MemStorageMuxLongTerm) AddMulti(modval []models.Metrics) (*[]models.Metrics, error) {
+func (storage *MemStorageMuxLongTerm) AddMulti(ctx context.Context, modval []models.Metrics) (*[]models.Metrics, error) {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	valNew, err := storage.store.AddMulti(modval)
+	valNew, err := storage.store.AddMulti(ctx, modval)
 	if err != nil {
 		return nil, fmt.Errorf("failed add multi %w", err)
 	}
 	if storage.cfg.Interval == 0 {
-		err := storage.doWriteData()
+		err := storage.doWriteData(ctx)
 		if err != nil {
 			storage.l.Error("error write data", zap.Error(err))
 		}
@@ -91,12 +91,12 @@ func (storage *MemStorageMuxLongTerm) AddMulti(modval []models.Metrics) (*[]mode
 	return valNew, nil
 }
 
-func (storage *MemStorageMuxLongTerm) Add(name string, val valuemetric.ValueMetric) (valuemetric.ValueMetric, error) {
+func (storage *MemStorageMuxLongTerm) Add(ctx context.Context, name string, val valuemetric.ValueMetric) (valuemetric.ValueMetric, error) {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	valNew, _ := storage.store.Add(name, val)
+	valNew, _ := storage.store.Add(ctx, name, val)
 	if storage.cfg.Interval == 0 {
-		err := storage.doWriteData()
+		err := storage.doWriteData(ctx)
 		if err != nil {
 			storage.l.Error("error write data", zap.Error(err))
 		}
@@ -104,24 +104,24 @@ func (storage *MemStorageMuxLongTerm) Add(name string, val valuemetric.ValueMetr
 	return valNew, nil
 }
 
-func (storage *MemStorageMuxLongTerm) Get(name string) (valuemetric.ValueMetric, error) {
+func (storage *MemStorageMuxLongTerm) Get(ctx context.Context, name string) (valuemetric.ValueMetric, error) {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	return storage.store.Get(name)
+	return storage.store.Get(ctx, name)
 }
 
-func (storage *MemStorageMuxLongTerm) ReadAll(prog memstorage.FuncReadAllMetric) error {
+func (storage *MemStorageMuxLongTerm) ReadAll(ctx context.Context, prog memstorage.FuncReadAllMetric) error {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	return storage.store.ReadAll(prog)
+	return storage.store.ReadAll(ctx, prog)
 }
-func (storage *MemStorageMuxLongTerm) ReadAllClearCounters(prog memstorage.FuncReadAllMetric) error {
+func (storage *MemStorageMuxLongTerm) ReadAllClearCounters(ctx context.Context, prog memstorage.FuncReadAllMetric) error {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
-	return storage.store.ReadAllClearCounters(prog)
+	return storage.store.ReadAllClearCounters(ctx, prog)
 }
 
-func (storage *MemStorageMuxLongTerm) doWriteData() error {
+func (storage *MemStorageMuxLongTerm) doWriteData(ctx context.Context) error {
 	err := storage.filestorage.OpenWriter()
 	if err != nil {
 		storage.l.Debug("error open source", zap.Error(err))
@@ -134,7 +134,7 @@ func (storage *MemStorageMuxLongTerm) doWriteData() error {
 	}()
 
 	valNewModel := new(models.Metrics)
-	err = storage.store.ReadAll(func(key string, val valuemetric.ValueMetric) error {
+	err = storage.store.ReadAll(ctx, func(key string, val valuemetric.ValueMetric) error {
 		valNewModel.ConvertMetricToModel(key, val)
 		if errson := storage.filestorage.WriteData(valNewModel); errson != nil {
 			storage.l.Debug("error writing data", zap.Error(errson))
@@ -148,7 +148,7 @@ func (storage *MemStorageMuxLongTerm) doWriteData() error {
 	return nil
 }
 
-func (storage *MemStorageMuxLongTerm) LoadData() error {
+func (storage *MemStorageMuxLongTerm) LoadData(ctx context.Context) error {
 	err := storage.filestorage.OpenReader()
 	if err != nil {
 		storage.l.Debug("error open source", zap.Error(err))
@@ -176,14 +176,14 @@ func (storage *MemStorageMuxLongTerm) LoadData() error {
 		if err != nil {
 			return err
 		}
-		_, _ = storage.store.Add(valNewModel.ID, *val)
+		_, _ = storage.store.Add(ctx, valNewModel.ID, *val)
 	}
 }
 
-func (storage *MemStorageMuxLongTerm) saveData() {
+func (storage *MemStorageMuxLongTerm) saveData(ctx context.Context) {
 	for {
 		time.Sleep(time.Duration(storage.cfg.Interval) * time.Second)
-		err := storage.DataWrite()
+		err := storage.DataWrite(ctx)
 		if err != nil {
 			storage.l.Error("error write data", zap.Error(err))
 			continue
@@ -191,19 +191,19 @@ func (storage *MemStorageMuxLongTerm) saveData() {
 	}
 }
 
-func (storage *MemStorageMuxLongTerm) DataWrite() error {
+func (storage *MemStorageMuxLongTerm) DataWrite(ctx context.Context) error {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
 
-	return storage.doWriteData()
+	return storage.doWriteData(ctx)
 }
 
-func (storage *MemStorageMuxLongTerm) DataRun() {
+func (storage *MemStorageMuxLongTerm) DataRun(ctx context.Context) {
 	if storage.cfg.Restore {
-		_ = storage.LoadData()
+		_ = storage.LoadData(ctx)
 	}
 	if storage.cfg.Interval > 0 {
-		go storage.saveData()
+		go storage.saveData(ctx)
 	}
 }
 

@@ -231,7 +231,7 @@ func (d *DB) SelectValue(name string, prog func(n string, k int, d int64, v floa
 	return nil
 }
 
-func (d *DB) SelectValueAll(prog func(n string, k int, d int64, v float64) error) error {
+func (d *DB) SelectValueAll(ctx context.Context, prog func(n string, k int, d int64, v float64) error) error {
 	rows, err := d.DB.Queryx("SELECT name , kind , delta , value  FROM metrics")
 	if err != nil {
 		return err

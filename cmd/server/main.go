@@ -49,7 +49,7 @@ func run() error {
 			log.Println("Server has been stopped")
 		}
 
-		err = storageRes.Close()
+		err = storageRes.Close(context.TODO())
 
 		if err != nil {
 			log.Println(err)

@@ -80,7 +80,7 @@ func newJPostReq(ctx context.Context, client *http.Client, server string, reques
 	return nil
 }
 
-func (app *App) Run() error {
+func (app *App) Run(ctxMAIN context.Context) error {
 	var netTransport = &http.Transport{
 		Dial: (&net.Dialer{
 			Timeout: 2 * time.Second,
@@ -92,10 +92,7 @@ func (app *App) Run() error {
 		Transport: netTransport,
 	}
 	server := "http://" + app.cfg.Address + "/update/"
-	var plainTxtFunc = func(data string) error {
-		ctx, cancel := context.WithTimeout(
-			context.Background(), 1*time.Minute)
-		defer cancel()
+	var plainTxtFunc = func(ctx context.Context, data string) error {
 		err := utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
 			return newPPostReq(ctx, client, server, http.NoBody)
 		})
@@ -106,7 +103,7 @@ func (app *App) Run() error {
 		return nil
 	}
 
-	var JSONModelFunc = func(data *models.Metrics) error {
+	var JSONModelFunc = func(ctx context.Context, data *models.Metrics) error {
 		var requestBody bytes.Buffer
 		gz := gzip.NewWriter(&requestBody)
 		err := data.JSONEncodeBytes(gz)
@@ -115,9 +112,6 @@ func (app *App) Run() error {
 			log.Println(err)
 			return err
 		}
-		ctx, cancel := context.WithTimeout(
-			context.Background(), 1*time.Minute)
-		defer cancel()
 		err = utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
 			return newJPostReq(ctx, client, server, &requestBody)
 		})
@@ -126,7 +120,7 @@ func (app *App) Run() error {
 		}
 		return nil
 	}
-	var JSONModelSFunc = func(data *[]models.Metrics) error {
+	var JSONModelSFunc = func(ctx context.Context, data *[]models.Metrics) error {
 		var requestBody bytes.Buffer
 		gz := gzip.NewWriter(&requestBody)
 		err := models.JSONSEncodeBytes(gz, data)
@@ -137,10 +131,6 @@ func (app *App) Run() error {
 		}
 
 		serverupdates := "http://" + app.cfg.Address + "/updates/"
-
-		ctx, cancel := context.WithTimeout(
-			context.Background(), 1*time.Minute)
-		defer cancel()
 		err = utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
 			return newJPostReq(ctx, client, serverupdates, &requestBody)
 		})
@@ -155,12 +145,12 @@ func (app *App) Run() error {
 		time.Sleep(time.Duration(app.cfg.ReportInterval) * time.Second)
 		if app.cfg.ContentJSON {
 			if app.cfg.ContentBatch {
-				_ = app.serv.RangeMetricsJSONS(JSONModelSFunc)
+				_ = app.serv.RangeMetricsJSONS(ctxMAIN, JSONModelSFunc)
 			} else {
-				_ = app.serv.RangeMetricsJSON(JSONModelFunc)
+				_ = app.serv.RangeMetricsJSON(ctxMAIN, JSONModelFunc)
 			}
 		} else {
-			_ = app.serv.RangeMetrics(plainTxtFunc)
+			_ = app.serv.RangeMetrics(ctxMAIN, plainTxtFunc)
 		}
 	}
 }

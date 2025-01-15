@@ -33,17 +33,15 @@ func NewStoreDB(db *store.DB, l *zap.Logger) *DBStorage {
 const defaultTimeoutPing int = 500
 
 func (storage *DBStorage) PingContext(ctx context.Context) error {
-
 	err := utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
 		ctxP, cancel := context.WithTimeout(ctx, time.Duration(defaultTimeoutPing)*time.Millisecond)
 		defer cancel()
 		return storage.db.DB.PingContext(ctxP)
-	})
-
+	}, store.ProbePG)
 	return err
 }
 
-func (storage *DBStorage) AddMulti(modval []models.Metrics) (*[]models.Metrics, error) {
+func (storage *DBStorage) AddMulti(ctx context.Context, modval []models.Metrics) (*[]models.Metrics, error) {
 	tx, err := storage.db.BeginTx()
 
 	if err != nil {
@@ -86,7 +84,7 @@ func (storage *DBStorage) AddMulti(modval []models.Metrics) (*[]models.Metrics, 
 	return resmodels, nil
 }
 
-func (storage *DBStorage) Add(name string, val valuemetric.ValueMetric) (valuemetric.ValueMetric, error) {
+func (storage *DBStorage) Add(ctx context.Context, name string, val valuemetric.ValueMetric) (valuemetric.ValueMetric, error) {
 	tx, err := storage.db.BeginTx()
 	if err != nil {
 		storage.l.Error("failed to begin transaction", zap.Error(err))
@@ -113,7 +111,7 @@ func (storage *DBStorage) Add(name string, val valuemetric.ValueMetric) (valueme
 	return *valret, nil
 }
 
-func (storage *DBStorage) Get(name string) (valuemetric.ValueMetric, error) {
+func (storage *DBStorage) Get(ctx context.Context, name string) (valuemetric.ValueMetric, error) {
 	var valret *valuemetric.ValueMetric
 
 	err := storage.db.SelectValue(name, func(n string, k int, d int64, v float64) error {
@@ -131,24 +129,25 @@ func (storage *DBStorage) Get(name string) (valuemetric.ValueMetric, error) {
 	return *valret, nil
 }
 
-func (storage *DBStorage) ReadAll(prog memstorage.FuncReadAllMetric) error {
-	err := storage.db.SelectValueAll(func(n string, k int, d int64, v float64) error {
-		kind, errK := valuemetric.GetKindInt(k)
-		if errK != nil {
-			return errK
-		}
-		val, err := valuemetric.ConvertToValueMetricInt(kind, &d, &v)
-		if err != nil {
-			return err
-		}
-		return prog(n, *val)
-	})
-	if err != nil {
+func (storage *DBStorage) ReadAll(ctx context.Context, prog memstorage.FuncReadAllMetric) error {
+	errR := utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
+		err := storage.db.SelectValueAll(ctx, func(n string, k int, d int64, v float64) error {
+			kind, errK := valuemetric.GetKindInt(k)
+			if errK != nil {
+				return errK
+			}
+			val, err := valuemetric.ConvertToValueMetricInt(kind, &d, &v)
+			if err != nil {
+				return err
+			}
+			return prog(n, *val)
+		})
 		return err
-	}
-	return nil
+	}, store.ProbePG)
+
+	return errR
 }
 
-func (storage *DBStorage) ReadAllClearCounters(prog memstorage.FuncReadAllMetric) error {
+func (storage *DBStorage) ReadAllClearCounters(ctx context.Context, prog memstorage.FuncReadAllMetric) error {
 	return nil
 }

@@ -20,11 +20,11 @@ import (
 )
 
 type resoucesMetricsStorage interface {
-	Add(string, valuemetric.ValueMetric) (valuemetric.ValueMetric, error)
-	Get(string) (valuemetric.ValueMetric, error)
-	ReadAll(memstorage.FuncReadAllMetric) error
+	Add(context.Context, string, valuemetric.ValueMetric) (valuemetric.ValueMetric, error)
+	Get(context.Context, string) (valuemetric.ValueMetric, error)
+	ReadAll(context.Context, memstorage.FuncReadAllMetric) error
 	PingContext(context.Context) error
-	AddMulti([]models.Metrics) (*[]models.Metrics, error)
+	AddMulti(context.Context, []models.Metrics) (*[]models.Metrics, error)
 }
 
 type handleResources struct {
@@ -36,7 +36,6 @@ type handleResources struct {
 func CreateResouces(cfg *config.Config, l *zap.Logger) (*handleResources, error) {
 	hs := new(handleResources)
 	if cfg.DBcfg.DatabaseDSN != "" {
-
 		db, errDB := store.NewDB(cfg.DBcfg)
 
 		if errDB != nil {
@@ -54,7 +53,7 @@ func CreateResouces(cfg *config.Config, l *zap.Logger) (*handleResources, error)
 			fileWork.UseForReader(zipdata.NewReader())
 
 			storage := repository.NewStoreMuxFiles(&cfg.Repcfg, l, fileWork)
-			storage.DataRun()
+			storage.DataRun(context.TODO())
 			hs.FILE = storage
 
 			hs.Store = storage
@@ -65,9 +64,9 @@ func CreateResouces(cfg *config.Config, l *zap.Logger) (*handleResources, error)
 	return hs, nil
 }
 
-func (hr *handleResources) Close() error {
+func (hr *handleResources) Close(ctx context.Context) error {
 	if hr.FILE != nil {
-		err := hr.FILE.DataWrite()
+		err := hr.FILE.DataWrite(ctx)
 		if err != nil {
 			log.Println("Error Close File ")
 		} else {
