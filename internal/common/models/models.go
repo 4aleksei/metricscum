@@ -32,3 +32,16 @@ func (valModels *Metrics) JSONEncodeBytes(w io.Writer) error {
 	err := enc.Encode(valModels)
 	return err
 }
+
+func JSONSDecode(body io.ReadCloser) ([]Metrics, error) {
+	var valModels []Metrics
+	dec := json.NewDecoder(body)
+	err := dec.Decode(&valModels)
+	return valModels, err
+}
+
+func JSONSEncodeBytes(w io.Writer, val *[]Metrics) error {
+	enc := json.NewEncoder(w)
+	err := enc.Encode(val)
+	return err
+}

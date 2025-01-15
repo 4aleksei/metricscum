@@ -8,13 +8,9 @@ import (
 	"syscall"
 
 	"github.com/4aleksei/metricscum/internal/common/logger"
-	"github.com/4aleksei/metricscum/internal/common/repository"
-	"github.com/4aleksei/metricscum/internal/common/repository/longtermfile"
-	"github.com/4aleksei/metricscum/internal/common/streams/compressors/zipdata"
-	"github.com/4aleksei/metricscum/internal/common/streams/encoders/jsonencdec"
-	"github.com/4aleksei/metricscum/internal/common/streams/sources/singlefile"
 	"github.com/4aleksei/metricscum/internal/server/config"
 	"github.com/4aleksei/metricscum/internal/server/handlers"
+	"github.com/4aleksei/metricscum/internal/server/resources"
 	"github.com/4aleksei/metricscum/internal/server/service"
 )
 
@@ -26,21 +22,17 @@ func main() {
 
 func run() error {
 	cfg := config.GetConfig()
-
 	l, err := logger.NewLog(cfg.Level)
 	if err != nil {
 		return err
 	}
-	fileWork := longtermfile.NewLongTerm(singlefile.NewReader(cfg.FilePath),
-		jsonencdec.NewReader(), singlefile.NewWriter(cfg.FilePath), jsonencdec.NewWriter())
 
-	fileWork.UseForWriter(zipdata.NewWriter())
-	fileWork.UseForReader(zipdata.NewReader())
+	storageRes, err := resources.CreateResouces(cfg, l)
+	if err != nil {
+		return err
+	}
 
-	store := repository.NewStoreMuxFiles(&cfg.Repcfg, l, fileWork)
-	store.DataRun()
-
-	metricsService := service.NewHandlerStore(store)
+	metricsService := service.NewHandlerStore(storageRes.Store)
 	server := handlers.NewHandlers(metricsService, cfg, l)
 
 	sigs := make(chan os.Signal, 1)
@@ -56,7 +48,12 @@ func run() error {
 		} else {
 			log.Println("Server has been stopped")
 		}
-		store.DataWrite()
+
+		err = storageRes.Close(context.TODO())
+
+		if err != nil {
+			log.Println(err)
+		}
 
 		err = l.Sync()
 		if err != nil {
@@ -64,9 +61,7 @@ func run() error {
 		} else {
 			log.Println("Logger has been flushed")
 		}
-
-		os.Exit(1)
+		os.Exit(0)
 	}()
-
 	return server.Serve()
 }
