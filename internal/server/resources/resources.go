@@ -36,7 +36,9 @@ type handleResources struct {
 func CreateResouces(cfg *config.Config, l *zap.Logger) (*handleResources, error) {
 	hs := new(handleResources)
 	if cfg.DBcfg.DatabaseDSN != "" {
+
 		db, errDB := store.NewDB(cfg.DBcfg)
+
 		if errDB != nil {
 			l.Debug("DB error", zap.Error(errDB))
 			return nil, errDB

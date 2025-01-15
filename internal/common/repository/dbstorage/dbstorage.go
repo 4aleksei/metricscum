@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
 	"github.com/4aleksei/metricscum/internal/common/store"
+	"github.com/4aleksei/metricscum/internal/common/utils"
 	"go.uber.org/zap"
 )
 
@@ -28,8 +30,17 @@ func NewStoreDB(db *store.DB, l *zap.Logger) *DBStorage {
 		l: l}
 }
 
+const defaultTimeoutPing int = 500
+
 func (storage *DBStorage) PingContext(ctx context.Context) error {
-	return storage.db.DB.PingContext(ctx)
+
+	err := utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
+		ctxP, cancel := context.WithTimeout(ctx, time.Duration(defaultTimeoutPing)*time.Millisecond)
+		defer cancel()
+		return storage.db.DB.PingContext(ctxP)
+	})
+
+	return err
 }
 
 func (storage *DBStorage) AddMulti(modval []models.Metrics) (*[]models.Metrics, error) {
@@ -103,7 +114,6 @@ func (storage *DBStorage) Add(name string, val valuemetric.ValueMetric) (valueme
 }
 
 func (storage *DBStorage) Get(name string) (valuemetric.ValueMetric, error) {
-	// select from db
 	var valret *valuemetric.ValueMetric
 
 	err := storage.db.SelectValue(name, func(n string, k int, d int64, v float64) error {
@@ -140,6 +150,5 @@ func (storage *DBStorage) ReadAll(prog memstorage.FuncReadAllMetric) error {
 }
 
 func (storage *DBStorage) ReadAllClearCounters(prog memstorage.FuncReadAllMetric) error {
-	// select all from db and call prog for each record, and clear counters
 	return nil
 }

@@ -3,10 +3,15 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"time"
 
+	"github.com/4aleksei/metricscum/internal/common/utils"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 )
@@ -36,24 +41,56 @@ const (
 	databaseDSNDefault string = ""
 )
 
+func ProbePG(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		fmt.Println(pgErr.Code)
+		return pgerrcode.IsConnectionException(pgErr.Code)
+	}
+	return false
+}
+
 func NewDB(cfg Config) (*DB, error) {
 	if cfg.DatabaseDSN == "" {
 		return &DB{DB: nil}, nil
 	}
-	db, err := sqlx.Open("pgx", cfg.DatabaseDSN)
-	if err != nil {
-		return nil, err
-	}
+
+	var db *sqlx.DB
 	ctx := context.Background()
-	ctxTimeOutPing, cancel := context.WithTimeout(ctx, 3*time.Second)
+	ctxB, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
-	err = db.PingContext(ctxTimeOutPing)
+	err := utils.RetryAction(ctxB, utils.RetryTimes(), func(ctx context.Context) error {
+		var err error
+		db, err = sqlx.Open("pgx", cfg.DatabaseDSN)
+		return err
+	})
+
 	if err != nil {
 		return nil, err
 	}
-	ctxTimeOut, cancel2 := context.WithTimeout(ctx, 3*time.Second)
+
+	ctxTimeOutPing, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+
+	err = utils.RetryAction(ctxTimeOutPing, utils.RetryTimes(), func(ctx context.Context) error {
+		ctxTime, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+		return db.PingContext(ctxTime)
+	}, ProbePG)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ctxTimeOut, cancel2 := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel2()
-	err = createMetricsTable(ctxTimeOut, db)
+
+	err = utils.RetryAction(ctxTimeOut, utils.RetryTimes(), func(ctx context.Context) error {
+		ctxTimeOut, cancel2 := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel2()
+		return createMetricsTable(ctxTimeOut, db)
+	}, ProbePG)
+
 	if err != nil {
 		return nil, err
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/4aleksei/metricscum/internal/agent/config"
 	"github.com/4aleksei/metricscum/internal/agent/service"
 	"github.com/4aleksei/metricscum/internal/common/models"
+	"github.com/4aleksei/metricscum/internal/common/utils"
 )
 
 type App struct {
@@ -22,6 +23,7 @@ type App struct {
 
 const (
 	textHTMLContent        string = "text/html"
+	textPlainContent       string = "text/plain"
 	applicationJSONContent string = "application/json"
 	gzipContent            string = "gzip"
 )
@@ -33,7 +35,28 @@ func NewApp(store *service.HandlerStore, cfg *config.Config) *App {
 	return p
 }
 
-func newPostReq(ctx context.Context, client *http.Client, server string, requestBody io.Reader) error {
+func newPPostReq(ctx context.Context, client *http.Client, server string, requestBody io.Reader) error {
+	req, err := http.NewRequestWithContext(ctx, "POST", server, requestBody)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	req.Header.Set("Content-Type", textPlainContent)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	defer resp.Body.Close()
+	_, errcoppy := io.Copy(io.Discard, resp.Body)
+	if errcoppy != nil {
+		log.Println(err)
+		return err
+	}
+	return nil
+}
+
+func newJPostReq(ctx context.Context, client *http.Client, server string, requestBody io.Reader) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", server, requestBody)
 	if err != nil {
 		log.Println(err)
@@ -70,22 +93,14 @@ func (app *App) Run() error {
 	}
 	server := "http://" + app.cfg.Address + "/update/"
 	var plainTxtFunc = func(data string) error {
-		ctx := context.Background()
-		req, err := http.NewRequestWithContext(ctx, "POST", server, http.NoBody)
+		ctx, cancel := context.WithTimeout(
+			context.Background(), 1*time.Minute)
+		defer cancel()
+		err := utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
+			return newPPostReq(ctx, client, server, http.NoBody)
+		})
+
 		if err != nil {
-			log.Println(err)
-			return err
-		}
-		req.Header.Set("Content-Type", "text/plain")
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-		defer resp.Body.Close()
-		_, errcoppy := io.Copy(io.Discard, resp.Body)
-		if errcoppy != nil {
-			log.Println(err)
 			return err
 		}
 		return nil
@@ -100,8 +115,12 @@ func (app *App) Run() error {
 			log.Println(err)
 			return err
 		}
-		ctx := context.Background()
-		err = newPostReq(ctx, client, server, &requestBody)
+		ctx, cancel := context.WithTimeout(
+			context.Background(), 1*time.Minute)
+		defer cancel()
+		err = utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
+			return newJPostReq(ctx, client, server, &requestBody)
+		})
 		if err != nil {
 			return err
 		}
@@ -116,9 +135,16 @@ func (app *App) Run() error {
 			log.Println(err)
 			return err
 		}
-		ctx := context.Background()
+
 		serverupdates := "http://" + app.cfg.Address + "/updates/"
-		err = newPostReq(ctx, client, serverupdates, &requestBody)
+
+		ctx, cancel := context.WithTimeout(
+			context.Background(), 1*time.Minute)
+		defer cancel()
+		err = utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
+			return newJPostReq(ctx, client, serverupdates, &requestBody)
+		})
+
 		if err != nil {
 			return err
 		}

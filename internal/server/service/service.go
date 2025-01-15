@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
@@ -136,10 +135,6 @@ func (h *HandlerStore) GetAllStore() (string, error) {
 	return valstr, nil
 }
 
-const defaultTimeoutPing int = 500
-
 func (h *HandlerStore) GetPingDB(ctxPrnt context.Context) error {
-	ctx, cancel := context.WithTimeout(ctxPrnt, time.Duration(defaultTimeoutPing)*time.Millisecond)
-	defer cancel()
-	return h.store.PingContext(ctx)
+	return h.store.PingContext(ctxPrnt)
 }
