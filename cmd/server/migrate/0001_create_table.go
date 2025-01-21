@@ -7,7 +7,7 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-func init() {
+func init() { //nolint:gochecknoinits // for goose migration
 	goose.AddMigrationContext(Up00001, Down00001)
 }
 

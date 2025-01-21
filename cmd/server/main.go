@@ -17,6 +17,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	defaultHTTPshutdown int = 10
+)
+
 func main() {
 	if err := run(); err != nil {
 		log.Fatal(err)
@@ -55,7 +59,7 @@ func run() error {
 
 	l.Info("Server is shutting down...", zap.String("signal", sig.String()))
 
-	shutdownCtx, shutdownRelease := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, shutdownRelease := context.WithTimeout(context.Background(), time.Duration(defaultHTTPshutdown)*time.Second)
 	defer shutdownRelease()
 
 	if err := server.Srv.Shutdown(shutdownCtx); err != nil {
@@ -71,7 +75,7 @@ func run() error {
 		l.Info("Resources close complete")
 	}
 
-	l.Sync()
+	_ = l.Sync()
 
 	return nil
 }

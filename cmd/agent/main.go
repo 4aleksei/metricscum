@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"time"
 
 	"github.com/4aleksei/metricscum/internal/agent/config"
@@ -16,12 +15,7 @@ import (
 )
 
 func main() {
-	if app, err := setup(); err != nil {
-		log.Fatal(err)
-		return
-	} else {
-		app.Run()
-	}
+	setupFX().Run()
 }
 
 func registerSetLoggerLevel(ll *logger.Logger, cfg *config.Config, lc fx.Lifecycle) {
@@ -37,8 +31,7 @@ func registerRunnersHTTPClient(cc *handlers.App, lc fx.Lifecycle) {
 	lc.Append(utils.ToHook(cc))
 }
 
-func setup() (*fx.App, error) {
-
+func setupFX() *fx.App {
 	app := fx.New(
 		fx.Supply(logger.Config{Level: "debug"}),
 		fx.StopTimeout(1*time.Minute),
@@ -61,5 +54,5 @@ func setup() (*fx.App, error) {
 			registerRunnersGather,
 		),
 	)
-	return app, nil
+	return app
 }

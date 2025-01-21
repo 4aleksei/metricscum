@@ -35,7 +35,6 @@ const (
 func ProbePG(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
-
 		return pgerrcode.IsConnectionException(pgErr.Code)
 	}
 	return false
@@ -165,7 +164,9 @@ func (d *DB) Upsert(ctx context.Context, modval store.Metrics, prog func(n strin
 	return nil
 }
 
-func (d *DB) Upserts(ctx context.Context, modval []store.Metrics, limitbatch int, prog func(n string, k int, d int64, v float64) error) error {
+func (d *DB) Upserts(ctx context.Context,
+	modval []store.Metrics,
+	limitbatch int, prog func(n string, k int, d int64, v float64) error) error {
 	conn, err := d.dbpool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("acquire connection: %w", err)

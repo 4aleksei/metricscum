@@ -70,14 +70,12 @@ func (h *HandlersServer) withLogging(next http.Handler) http.Handler {
 }
 
 func (h *HandlersServer) Serve() {
-
 	go func() {
 		if err := h.Srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 			h.l.Debug("HTTP server error: ", zap.Error(err))
 		}
 		h.l.Info("Stopped serving new connections.")
 	}()
-
 }
 
 func (h *HandlersServer) gzipMiddleware(next http.Handler) http.Handler {

@@ -45,7 +45,6 @@ func RetryAction(
 	}
 
 	for {
-
 		select {
 		case <-ctx.Done():
 

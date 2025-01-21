@@ -59,7 +59,7 @@ func RandFloat64() float64 {
 	return float64(Intn()) / float64(maxInt)
 }
 
-func (app *AppGather) mainGather(ctx context.Context) error {
+func (app *AppGather) mainGather(ctx context.Context) {
 	defer app.wg.Done()
 	var m runtime.MemStats
 
@@ -69,7 +69,7 @@ func (app *AppGather) mainGather(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			app.l.L.Info("Stop gathering.")
-			return ctx.Err()
+			return
 		default:
 			utils.SleepContext(ctx, time.Duration(app.cfg.PollInterval)*time.Second)
 			runtime.ReadMemStats(&m)
@@ -104,5 +104,4 @@ func (app *AppGather) mainGather(ctx context.Context) error {
 			app.serv.SetGauge(ctx, "RandomValue", RandFloat64())
 		}
 	}
-
 }

@@ -43,9 +43,7 @@ func (l *Logger) SetLevel(lev string) {
 	case "fatal":
 		l.level.SetLevel(zapcore.FatalLevel)
 	default:
-
 	}
-
 }
 
 func (l *Logger) Start(ctx context.Context) error {

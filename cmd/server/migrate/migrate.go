@@ -21,7 +21,7 @@ func (l *gooseLogger) Printf(format string, v ...interface{}) {
 	l.l.Info("goose info", zap.String("msg", fmt.Sprintf(format, v...)))
 }
 
-func Migrate(l *zap.Logger, dbstring string, command string) error {
+func Migrate(l *zap.Logger, dbstring, command string) error {
 	var g = gooseLogger{l: l}
 
 	goose.SetLogger(&g)
@@ -32,10 +32,7 @@ func Migrate(l *zap.Logger, dbstring string, command string) error {
 	}
 
 	defer func() {
-		if err := db.Close(); err != nil {
-
-		}
-
+		db.Close()
 	}()
 
 	arguments := []string{}

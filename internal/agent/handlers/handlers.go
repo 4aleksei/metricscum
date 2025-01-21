@@ -102,7 +102,7 @@ func (app *App) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (app *App) run(ctx context.Context) error {
+func (app *App) run(ctx context.Context) {
 	defer app.wg.Done()
 	var netTransport = &http.Transport{
 		Dial: (&net.Dialer{
@@ -167,7 +167,7 @@ func (app *App) run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 
-			return ctx.Err()
+			return
 		default:
 			utils.SleepContext(ctx, time.Duration(app.cfg.ReportInterval)*time.Second)
 
