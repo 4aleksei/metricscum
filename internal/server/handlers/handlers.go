@@ -69,8 +69,15 @@ func (h *HandlersServer) withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(logFn)
 }
 
-func (h *HandlersServer) Serve() error {
-	return h.Srv.ListenAndServe()
+func (h *HandlersServer) Serve() {
+
+	go func() {
+		if err := h.Srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			h.l.Debug("HTTP server error: ", zap.Error(err))
+		}
+		h.l.Info("Stopped serving new connections.")
+	}()
+
 }
 
 func (h *HandlersServer) gzipMiddleware(next http.Handler) http.Handler {
@@ -205,7 +212,7 @@ func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Requ
 	val, err := h.store.GetValueModel(req.Context(), JSONstr)
 	if err != nil {
 		if errors.Is(err, service.ErrBadName) || errors.Is(err, memstorage.ErrNotFoundName) || errors.Is(err, sql.ErrNoRows) {
-			http.Error(res, "Invalid request!", http.StatusNotFound)
+			http.Error(res, "Not found!", http.StatusNotFound)
 			return
 		}
 		h.l.Debug("cannot decode GetValueModel request JSON body", zap.Error(err))

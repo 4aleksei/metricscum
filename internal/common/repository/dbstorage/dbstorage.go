@@ -6,16 +6,19 @@ import (
 	"fmt"
 	"time"
 
+	"database/sql"
+
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
 	"github.com/4aleksei/metricscum/internal/common/store"
+	"github.com/4aleksei/metricscum/internal/common/store/pg"
 	"github.com/4aleksei/metricscum/internal/common/utils"
 	"go.uber.org/zap"
 )
 
 type DBStorage struct {
-	db *store.DB
+	db store.Store
 	l  *zap.Logger
 }
 
@@ -25,7 +28,7 @@ var (
 	ErrNoDB     = errors.New("no db")
 )
 
-func NewStoreDB(db *store.DB, l *zap.Logger) *DBStorage {
+func NewStoreDB(db *pg.DB, l *zap.Logger) *DBStorage {
 	return &DBStorage{db: db,
 		l: l}
 }
@@ -36,20 +39,17 @@ func (storage *DBStorage) PingContext(ctx context.Context) error {
 	err := utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
 		ctxP, cancel := context.WithTimeout(ctx, time.Duration(defaultTimeoutPing)*time.Millisecond)
 		defer cancel()
-		return storage.db.DB.PingContext(ctxP)
-	}, store.ProbePG)
+		return storage.db.Ping(ctxP)
+	}, pg.ProbePG)
 	return err
 }
 
-func (storage *DBStorage) AddMulti(ctx context.Context, modval []models.Metrics) (*[]models.Metrics, error) {
-	tx, err := storage.db.BeginTx()
+const limitbatch int = 5
 
-	if err != nil {
-		storage.l.Error("failed to begin transaction", zap.Error(err))
-		return nil, fmt.Errorf("failed begin tx %w", err)
-	}
-
-	resmodels := new([]models.Metrics)
+func (storage *DBStorage) AddMulti(ctx context.Context, modval []models.Metrics) ([]models.Metrics, error) {
+	resmodels := make([]models.Metrics, 0, len(modval))
+	sm := make([]store.Metrics, len(modval))
+	var i = 0
 	for _, valModel := range modval {
 		kind, errKind := valuemetric.GetKind(valModel.MType)
 		if errKind != nil {
@@ -59,39 +59,45 @@ func (storage *DBStorage) AddMulti(ctx context.Context, modval []models.Metrics)
 			return nil, fmt.Errorf("failed %w", ErrBadName)
 		}
 
-		var valret *valuemetric.ValueMetric
-		err = tx.Upsert(valModel.ID, int(kind), valModel.Delta, valModel.Value, func(n string, k int, d int64, v float64) error {
-			kind, errK := valuemetric.GetKindInt(k)
-			if errK != nil {
-				return errK
-			}
-			valret, errK = valuemetric.ConvertToValueMetricInt(kind, &d, &v)
+		sm[i].Kind = int(kind)
+		sm[i].Name = valModel.ID
+		sm[i].Delta = sql.NullInt64{Valid: valModel.Delta != nil, Int64: utils.Setint64(valModel.Delta)}
+		sm[i].Value = sql.NullFloat64{Valid: valModel.Value != nil, Float64: utils.Setfloat64(valModel.Value)}
+
+		i++
+	}
+
+	var valret *valuemetric.ValueMetric
+
+	err := storage.db.Upserts(ctx, sm, limitbatch, func(n string, k int, d int64, v float64) error {
+		kind, errK := valuemetric.GetKindInt(k)
+		if errK != nil {
 			return errK
-		})
-		if err != nil {
-			storage.l.Error("failed to upsert transaction", zap.Error(err))
-			return nil, err
 		}
+		valret, errK = valuemetric.ConvertToValueMetricInt(kind, &d, &v)
 		var valNewModel models.Metrics
-		valNewModel.ConvertMetricToModel(valModel.ID, *valret)
-		*resmodels = append(*resmodels, valNewModel)
-	}
-	err = tx.EndTx()
+		valNewModel.ConvertMetricToModel(n, *valret)
+		resmodels = append(resmodels, valNewModel)
+		return errK
+	})
+
 	if err != nil {
-		storage.l.Error("failed to commit transaction", zap.Error(err))
-		return nil, fmt.Errorf("failed end tx %w", err)
+		storage.l.Error("failed to upserts transaction", zap.Error(err))
+		return nil, err
 	}
+
 	return resmodels, nil
 }
 
 func (storage *DBStorage) Add(ctx context.Context, name string, val valuemetric.ValueMetric) (valuemetric.ValueMetric, error) {
-	tx, err := storage.db.BeginTx()
-	if err != nil {
-		storage.l.Error("failed to begin transaction", zap.Error(err))
-		return valuemetric.ValueMetric{}, err
-	}
+	var modval store.Metrics
+	modval.Kind = val.GetKind()
+	modval.Name = name
+	modval.Delta = sql.NullInt64{Valid: val.ValueInt() != nil, Int64: utils.Setint64(val.ValueInt())}
+	modval.Value = sql.NullFloat64{Valid: val.ValueFloat() != nil, Float64: utils.Setfloat64(val.ValueFloat())}
+
 	var valret *valuemetric.ValueMetric
-	err = tx.Upsert(name, val.GetKind(), val.ValueInt(), val.ValueFloat(), func(n string, k int, d int64, v float64) error {
+	err := storage.db.Upsert(ctx, modval, func(n string, k int, d int64, v float64) error {
 		kind, errK := valuemetric.GetKindInt(k)
 		if errK != nil {
 			return errK
@@ -103,18 +109,14 @@ func (storage *DBStorage) Add(ctx context.Context, name string, val valuemetric.
 		storage.l.Error("failed to upsert transaction", zap.Error(err))
 		return valuemetric.ValueMetric{}, err
 	}
-	err = tx.EndTx()
-	if err != nil {
-		storage.l.Error("failed to commit transaction", zap.Error(err))
-		return valuemetric.ValueMetric{}, err
-	}
+
 	return *valret, nil
 }
 
 func (storage *DBStorage) Get(ctx context.Context, name string) (valuemetric.ValueMetric, error) {
 	var valret *valuemetric.ValueMetric
 
-	err := storage.db.SelectValue(name, func(n string, k int, d int64, v float64) error {
+	err := storage.db.SelectValue(ctx, name, func(n string, k int, d int64, v float64) error {
 		kind, errK := valuemetric.GetKindInt(k)
 		if errK != nil {
 			return errK
@@ -143,7 +145,7 @@ func (storage *DBStorage) ReadAll(ctx context.Context, prog memstorage.FuncReadA
 			return prog(n, *val)
 		})
 		return err
-	}, store.ProbePG)
+	}, pg.ProbePG)
 
 	return errR
 }

@@ -40,7 +40,7 @@ func JSONSDecode(body io.ReadCloser) ([]Metrics, error) {
 	return valModels, err
 }
 
-func JSONSEncodeBytes(w io.Writer, val *[]Metrics) error {
+func JSONSEncodeBytes(w io.Writer, val []Metrics) error {
 	enc := json.NewEncoder(w)
 	err := enc.Encode(val)
 	return err

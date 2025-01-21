@@ -80,7 +80,7 @@ func Test_handlers_mainHTTPPlain(t *testing.T) {
 		{name: "Test No4", req: request{method: http.MethodPost, url: "/update/gauge/"}, want: want{statusCode: http.StatusNotFound, contentType: "text/plain; charset=utf-8"}},
 		{name: "Test No5", req: request{method: http.MethodPost, url: "/update/unknown/"}, want: want{statusCode: http.StatusBadRequest, contentType: "text/plain; charset=utf-8"}},
 		{name: "Test No6", req: request{method: http.MethodPost, url: "/update/unknown/test3/10"}, want: want{statusCode: http.StatusBadRequest, contentType: "text/plain; charset=utf-8"}},
-		{name: "Test No7", req: request{method: http.MethodPost, url: "/update/counter//10"}, want: want{statusCode: http.StatusNotFound, contentType: "text/plain; charset=utf-8"}},
+		{name: "Test No7", req: request{method: http.MethodPost, url: "/update/counter10"}, want: want{statusCode: http.StatusNotFound, contentType: "text/plain; charset=utf-8"}},
 		{name: "Test No8", req: request{method: http.MethodPost, url: "/update/gauge/test3/dfdfs"}, want: want{statusCode: http.StatusBadRequest, contentType: "text/plain; charset=utf-8"}},
 		{name: "Test No9", req: request{method: http.MethodPost, url: "/update/counter/test4/5454.3434"}, want: want{statusCode: http.StatusBadRequest, contentType: "text/plain; charset=utf-8"}},
 		{name: "Test No10", req: request{method: http.MethodPost, url: "/update/counter/testreal/10"}, want: want{statusCode: http.StatusOK, contentType: "text/plain; charset=utf-8"}},

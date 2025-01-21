@@ -75,7 +75,7 @@ func (storage *MemStorageMuxLongTerm) PingContext(ctx context.Context) error {
 	return nil
 }
 
-func (storage *MemStorageMuxLongTerm) AddMulti(ctx context.Context, modval []models.Metrics) (*[]models.Metrics, error) {
+func (storage *MemStorageMuxLongTerm) AddMulti(ctx context.Context, modval []models.Metrics) ([]models.Metrics, error) {
 	storage.mux.Lock()
 	defer storage.mux.Unlock()
 	valNew, err := storage.store.AddMulti(ctx, modval)

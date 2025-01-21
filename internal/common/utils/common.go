@@ -5,6 +5,26 @@ import (
 	"time"
 )
 
+func SleepContext(ctx context.Context, t time.Duration) {
+	sleep, cancel := context.WithTimeout(ctx, t)
+	defer cancel()
+	<-sleep.Done()
+}
+
+func Setint64(i *int64) int64 {
+	if i == nil {
+		return 0
+	}
+	return *i
+}
+
+func Setfloat64(f *float64) float64 {
+	if f == nil {
+		return 0.0
+	}
+	return *f
+}
+
 func probeDefault(err error) bool {
 	return true
 }
@@ -25,13 +45,14 @@ func RetryAction(
 	}
 
 	for {
+
 		select {
 		case <-ctx.Done():
-			if err != nil {
-				return err
-			}
+
+			return ctx.Err()
 
 		default:
+
 			err = callback(ctx)
 
 			if err != nil {
@@ -45,13 +66,16 @@ func RetryAction(
 					}
 				}
 
-				if shouldContinue && len(timers) > 0 {
-					time.Sleep(time.Duration(timers[0]) * time.Millisecond)
+				if shouldContinue && (len(timers) > 0) {
+					SleepContext(ctx, time.Duration(timers[0])*time.Millisecond)
 					timers = timers[1:]
+
 					continue
 				}
+
 				return err
 			}
+
 			return nil
 		}
 	}

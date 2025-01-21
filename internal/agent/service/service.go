@@ -56,12 +56,12 @@ func (h *HandlerStore) RangeMetricsJSON(ctx context.Context, prog func(context.C
 	return err
 }
 
-func (h *HandlerStore) RangeMetricsJSONS(ctx context.Context, prog func(context.Context, *[]models.Metrics) error) error {
-	resmodels := new([]models.Metrics)
+func (h *HandlerStore) RangeMetricsJSONS(ctx context.Context, prog func(context.Context, []models.Metrics) error) error {
+	resmodels := make([]models.Metrics, 0, 1)
 	err := h.store.ReadAllClearCounters(ctx, func(key string, val valuemetric.ValueMetric) error {
 		var valNewModel models.Metrics
 		valNewModel.ConvertMetricToModel(key, val)
-		*resmodels = append(*resmodels, valNewModel)
+		resmodels = append(resmodels, valNewModel)
 		return nil
 	})
 	if err != nil {

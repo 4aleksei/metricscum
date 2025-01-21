@@ -29,8 +29,8 @@ var (
 	ErrNoDB     = errors.New("no db")
 )
 
-func (storage *MemStorage) AddMulti(ctx context.Context, modval []models.Metrics) (*[]models.Metrics, error) {
-	resmodels := new([]models.Metrics)
+func (storage *MemStorage) AddMulti(ctx context.Context, modval []models.Metrics) ([]models.Metrics, error) {
+	resmodels := make([]models.Metrics, 0, len(modval))
 	for _, valModel := range modval {
 		kind, errKind := valuemetric.GetKind(valModel.MType)
 		if errKind != nil {
@@ -49,7 +49,7 @@ func (storage *MemStorage) AddMulti(ctx context.Context, modval []models.Metrics
 		}
 		var valNewModel models.Metrics
 		valNewModel.ConvertMetricToModel(valModel.ID, resval)
-		*resmodels = append(*resmodels, valNewModel)
+		resmodels = append(resmodels, valNewModel)
 	}
 	return resmodels, nil
 }

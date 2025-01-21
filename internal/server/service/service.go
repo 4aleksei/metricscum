@@ -15,7 +15,7 @@ type serverMetricsStorage interface {
 	Get(context.Context, string) (valuemetric.ValueMetric, error)
 	ReadAll(context.Context, memstorage.FuncReadAllMetric) error
 	PingContext(context.Context) error
-	AddMulti(context.Context, []models.Metrics) (*[]models.Metrics, error)
+	AddMulti(context.Context, []models.Metrics) ([]models.Metrics, error)
 }
 
 type HandlerStore struct {
@@ -42,7 +42,7 @@ func (h *HandlerStore) CheckType(s string) error {
 	return nil
 }
 
-func (h *HandlerStore) SetValueSModel(ctx context.Context, valModel []models.Metrics) (*[]models.Metrics, error) {
+func (h *HandlerStore) SetValueSModel(ctx context.Context, valModel []models.Metrics) ([]models.Metrics, error) {
 	valNewModel, errA := h.store.AddMulti(ctx, valModel)
 	if errA != nil {
 		return nil, fmt.Errorf("add failed %w", errA)

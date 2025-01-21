@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/4aleksei/metricscum/internal/common/repository"
-	"github.com/4aleksei/metricscum/internal/common/store"
+	"github.com/4aleksei/metricscum/internal/common/store/pg"
 )
 
 type Config struct {
@@ -14,7 +14,7 @@ type Config struct {
 	FilePath string
 
 	Repcfg repository.Config
-	DBcfg  store.Config
+	DBcfg  pg.Config
 }
 
 const (
@@ -30,7 +30,7 @@ func GetConfig() *Config {
 	flag.StringVar(&cfg.FilePath, "f", FilePathDefault, "FilePath store")
 
 	repository.ReadConfigFlag(&cfg.Repcfg)
-	store.ReadConfigFlag(&cfg.DBcfg)
+	pg.ReadConfigFlag(&cfg.DBcfg)
 
 	flag.Parse()
 
@@ -41,7 +41,7 @@ func GetConfig() *Config {
 		cfg.FilePath = envFilePath
 	}
 	repository.ReadConfigEnv(&cfg.Repcfg)
-	store.ReadConfigEnv(&cfg.DBcfg)
+	pg.ReadConfigEnv(&cfg.DBcfg)
 
 	return cfg
 }

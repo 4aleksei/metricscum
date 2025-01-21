@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"log"
 
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository"
@@ -12,6 +11,7 @@ import (
 	"github.com/4aleksei/metricscum/internal/common/repository/memstoragemux"
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
 	"github.com/4aleksei/metricscum/internal/common/store"
+	"github.com/4aleksei/metricscum/internal/common/store/pg"
 	"github.com/4aleksei/metricscum/internal/common/streams/compressors/zipdata"
 	"github.com/4aleksei/metricscum/internal/common/streams/encoders/jsonencdec"
 	"github.com/4aleksei/metricscum/internal/common/streams/sources/singlefile"
@@ -24,19 +24,19 @@ type resoucesMetricsStorage interface {
 	Get(context.Context, string) (valuemetric.ValueMetric, error)
 	ReadAll(context.Context, memstorage.FuncReadAllMetric) error
 	PingContext(context.Context) error
-	AddMulti(context.Context, []models.Metrics) (*[]models.Metrics, error)
+	AddMulti(context.Context, []models.Metrics) ([]models.Metrics, error)
 }
 
 type handleResources struct {
 	Store resoucesMetricsStorage
-	DB    *store.DB
+	DB    store.Store
 	FILE  *repository.MemStorageMuxLongTerm
 }
 
 func CreateResouces(cfg *config.Config, l *zap.Logger) (*handleResources, error) {
 	hs := new(handleResources)
 	if cfg.DBcfg.DatabaseDSN != "" {
-		db, errDB := store.NewDB(cfg.DBcfg)
+		db, errDB := pg.NewDB(cfg.DBcfg)
 
 		if errDB != nil {
 			l.Debug("DB error", zap.Error(errDB))
@@ -68,19 +68,12 @@ func (hr *handleResources) Close(ctx context.Context) error {
 	if hr.FILE != nil {
 		err := hr.FILE.DataWrite(ctx)
 		if err != nil {
-			log.Println("Error Close File ")
-		} else {
-			log.Println("File has been closed")
+			return err
 		}
 	}
 
 	if hr.DB != nil {
-		err := hr.DB.DB.Close()
-		if err != nil {
-			return err
-		} else {
-			log.Println("DB has been closed")
-		}
+		hr.DB.Close(ctx)
 	}
 	return nil
 }
