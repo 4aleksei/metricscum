@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"flag"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/4aleksei/metricscum/internal/common/store"
@@ -28,26 +26,12 @@ type (
 	}
 )
 
-const (
-	databaseDSNDefault string = ""
-)
-
 func ProbePG(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		return pgerrcode.IsConnectionException(pgErr.Code)
 	}
 	return false
-}
-
-func ReadConfigFlag(cfg *Config) {
-	flag.StringVar(&cfg.DatabaseDSN, "d", databaseDSNDefault, "DATABASE_DSN")
-}
-
-func ReadConfigEnv(cfg *Config) {
-	if envDBADDR := os.Getenv("DATABASE_DSN"); envDBADDR != "" {
-		cfg.DatabaseDSN = envDBADDR
-	}
 }
 
 func NewDB(cfg Config) (*DB, error) {
@@ -81,46 +65,7 @@ func NewDB(cfg Config) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	ctxTimeOut, cancel := context.WithTimeout(ctx, 1*time.Minute)
-	defer cancel()
-
-	err = utils.RetryAction(ctxTimeOut, utils.RetryTimes(), func(ctx context.Context) error {
-		ctxTimeOut, cancel := context.WithTimeout(ctx, 3*time.Second)
-		defer cancel()
-		return createMetricsTable(ctxTimeOut, db)
-	}, ProbePG)
-
-	if err != nil {
-		return nil, err
-	}
 	return &DB{dbpool: db}, nil
-}
-
-func createMetricsTable(ctx context.Context, db *pgxpool.Pool) error {
-	tx, err := db.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	_, errE := tx.Exec(ctx, `
-        CREATE TABLE IF NOT EXISTS metrics (
-            name varchar(128)  not null,
-            kind int4 not null ,
-			delta bigint,
-            value double precision,
-            updated_at timestamptz not null DEFAULT NOW(),
-			primary key(name, kind)
-        )
-    `)
-	if errE != nil {
-		return errE
-	}
-	_, errE = tx.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS metrics_idx ON metrics (name,kind)`)
-	if errE != nil {
-		return errE
-	}
-	return tx.Commit(ctx)
 }
 
 func (d *DB) Ping(ctx context.Context) error {

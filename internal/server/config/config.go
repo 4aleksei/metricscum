@@ -18,10 +18,21 @@ type Config struct {
 }
 
 const (
-	AddressDefault  string = ":8080"
-	LevelDefault    string = "debug"
-	FilePathDefault string = "./data.store"
+	AddressDefault     string = ":8080"
+	LevelDefault       string = "debug"
+	FilePathDefault    string = "./data.store"
+	databaseDSNDefault string = ""
 )
+
+func readConfigFlag(cfg *pg.Config) {
+	flag.StringVar(&cfg.DatabaseDSN, "d", databaseDSNDefault, "DATABASE_DSN")
+}
+
+func readConfigEnv(cfg *pg.Config) {
+	if envDBADDR := os.Getenv("DATABASE_DSN"); envDBADDR != "" {
+		cfg.DatabaseDSN = envDBADDR
+	}
+}
 
 func GetConfig() *Config {
 	cfg := new(Config)
@@ -30,7 +41,7 @@ func GetConfig() *Config {
 	flag.StringVar(&cfg.FilePath, "f", FilePathDefault, "FilePath store")
 
 	repository.ReadConfigFlag(&cfg.Repcfg)
-	pg.ReadConfigFlag(&cfg.DBcfg)
+	readConfigFlag(&cfg.DBcfg)
 
 	flag.Parse()
 
@@ -41,7 +52,7 @@ func GetConfig() *Config {
 		cfg.FilePath = envFilePath
 	}
 	repository.ReadConfigEnv(&cfg.Repcfg)
-	pg.ReadConfigEnv(&cfg.DBcfg)
+	readConfigEnv(&cfg.DBcfg)
 
 	return cfg
 }
