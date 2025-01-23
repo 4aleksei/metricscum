@@ -16,12 +16,23 @@ const (
 
 type ValueMetric struct {
 	kind       valueKind
-	valueFloat float64
 	valueInt   int64
+	valueFloat float64
 }
 
 func (v *ValueMetric) GetTypeStr() string {
 	return GetKindStr(v.kind)
+}
+
+func (v *ValueMetric) GetKind() int {
+	switch v.kind {
+	case kindFloat64:
+		return int(kindFloat64)
+	case kindInt64:
+		return int(kindInt64)
+	default:
+		return int(kindBadEmpty)
+	}
 }
 
 func (v *ValueMetric) ValueInt() *int64 {
@@ -43,6 +54,17 @@ var (
 	ErrBadValue     = errors.New("error value conversion")
 	ErrBadKindType  = errors.New("error kind type")
 )
+
+func GetKindInt(k int) (valueKind, error) {
+	switch k {
+	case int(kindFloat64):
+		return kindFloat64, nil
+	case int(kindInt64):
+		return kindInt64, nil
+	default:
+		return kindBadEmpty, ErrBadTypeValue
+	}
+}
 
 func GetKind(typeValue string) (valueKind, error) {
 	switch typeValue {
@@ -157,6 +179,9 @@ func ConvertValueMetricToPlain(val ValueMetric) (a, b string) {
 	case kindInt64:
 		a = GetKindStr(val.kind)
 		b = strconv.FormatInt(val.valueInt, 10)
+	default:
+		a = "nan"
+		b = "nan"
 	}
 	return a, b
 }

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -10,9 +11,11 @@ import (
 )
 
 type serverMetricsStorage interface {
-	Add(string, valuemetric.ValueMetric) valuemetric.ValueMetric
-	Get(string) (valuemetric.ValueMetric, error)
-	ReadAll(memstorage.FuncReadAllMetric) error
+	Add(context.Context, string, valuemetric.ValueMetric) (valuemetric.ValueMetric, error)
+	Get(context.Context, string) (valuemetric.ValueMetric, error)
+	ReadAll(context.Context, memstorage.FuncReadAllMetric) error
+	PingContext(context.Context) error
+	AddMulti(context.Context, []models.Metrics) ([]models.Metrics, error)
 }
 
 type HandlerStore struct {
@@ -28,6 +31,7 @@ func NewHandlerStore(store serverMetricsStorage) *HandlerStore {
 var (
 	ErrBadValue = errors.New("invalid value")
 	ErrBadName  = errors.New("no name")
+	ErrNoDB     = errors.New("no db")
 )
 
 func (h *HandlerStore) CheckType(s string) error {
@@ -38,10 +42,18 @@ func (h *HandlerStore) CheckType(s string) error {
 	return nil
 }
 
-func (h *HandlerStore) SetValueModel(valModel models.Metrics) (*models.Metrics, error) {
+func (h *HandlerStore) SetValueSModel(ctx context.Context, valModel []models.Metrics) ([]models.Metrics, error) {
+	valNewModel, errA := h.store.AddMulti(ctx, valModel)
+	if errA != nil {
+		return nil, fmt.Errorf("add failed %w", errA)
+	}
+	return valNewModel, nil
+}
+
+func (h *HandlerStore) SetValueModel(ctx context.Context, valModel models.Metrics) (*models.Metrics, error) {
 	kind, errKind := valuemetric.GetKind(valModel.MType)
 	if errKind != nil {
-		return nil, fmt.Errorf("failed %w", errKind)
+		return nil, fmt.Errorf("failed kind %w", errKind)
 	}
 	if valModel.ID == "" {
 		return nil, fmt.Errorf("failed %w", ErrBadName)
@@ -50,21 +62,25 @@ func (h *HandlerStore) SetValueModel(valModel models.Metrics) (*models.Metrics, 
 	if err != nil {
 		return nil, fmt.Errorf("failed %w", err)
 	}
-	newval := h.store.Add(valModel.ID, *val)
+	newval, errA := h.store.Add(ctx, valModel.ID, *val)
+	if errA != nil {
+		return nil, fmt.Errorf("add failed %w", errA)
+	}
+
 	valNewModel := new(models.Metrics)
 	valNewModel.ConvertMetricToModel(valModel.ID, newval)
 	return valNewModel, nil
 }
 
-func (h *HandlerStore) GetValueModel(valModel models.Metrics) (*models.Metrics, error) {
+func (h *HandlerStore) GetValueModel(ctx context.Context, valModel models.Metrics) (*models.Metrics, error) {
 	kind, errKind := valuemetric.GetKind(valModel.MType)
 	if errKind != nil {
-		return nil, fmt.Errorf("failed %w", errKind)
+		return nil, fmt.Errorf("kind failed %w", errKind)
 	}
 	if valModel.ID == "" {
 		return nil, fmt.Errorf("failed %w", ErrBadName)
 	}
-	val, err := h.store.Get(valModel.ID)
+	val, err := h.store.Get(ctx, valModel.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed %w", err)
 	}
@@ -76,35 +92,39 @@ func (h *HandlerStore) GetValueModel(valModel models.Metrics) (*models.Metrics, 
 	return valNewModel, nil
 }
 
-func (h *HandlerStore) RecievePlainValue(typeVal, name, valstr string) error {
+func (h *HandlerStore) RecievePlainValue(ctx context.Context, typeVal, name, valstr string) error {
 	kind, errKind := valuemetric.GetKind(typeVal)
 	if errKind != nil {
-		return fmt.Errorf("failed %w", errKind)
+		return fmt.Errorf("kind failed %w", errKind)
 	}
 	val, err := valuemetric.ConvertToValueMetric(kind, valstr)
 	if err != nil {
 		return fmt.Errorf("failed %w", err)
 	}
-	h.store.Add(name, *val)
+	_, err = h.store.Add(ctx, name, *val)
+	if err != nil {
+		return fmt.Errorf("failed %w", err)
+	}
 	return nil
 }
 
-func (h *HandlerStore) GetValuePlain(name, typeVal string) (string, error) {
-	val, err := h.store.Get(name)
+func (h *HandlerStore) GetValuePlain(ctx context.Context, name, typeVal string) (string, error) {
+	val, err := h.store.Get(ctx, name)
 	if err != nil {
 		return "", fmt.Errorf("failed %w", err)
 	}
 	typeKind, errKind := valuemetric.GetKind(typeVal)
+
 	if (errKind != nil) || (!val.KindOf(typeKind)) {
-		return "", fmt.Errorf("failed %w", errKind)
+		return "", fmt.Errorf("kind failed %w", errKind)
 	}
 	_, valstr := valuemetric.ConvertValueMetricToPlain(val)
 	return valstr, nil
 }
 
-func (h *HandlerStore) GetAllStore() (string, error) {
+func (h *HandlerStore) GetAllStore(ctx context.Context) (string, error) {
 	var valstr string
-	err := h.store.ReadAll(func(key string, val valuemetric.ValueMetric) error {
+	err := h.store.ReadAll(ctx, func(key string, val valuemetric.ValueMetric) error {
 		_, value := valuemetric.ConvertValueMetricToPlain(val)
 		valstr += fmt.Sprintf("%s : %s\n", key, value)
 		return nil
@@ -113,4 +133,8 @@ func (h *HandlerStore) GetAllStore() (string, error) {
 		return "", err
 	}
 	return valstr, nil
+}
+
+func (h *HandlerStore) GetPingDB(ctx context.Context) error {
+	return h.store.PingContext(ctx)
 }

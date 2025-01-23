@@ -2,9 +2,11 @@ package config
 
 import (
 	"flag"
-	"log"
 	"os"
 	"strconv"
+
+	"github.com/4aleksei/metricscum/internal/common/logger"
+	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -13,6 +15,8 @@ type Config struct {
 	ReportInterval int64
 	PollInterval   int64
 	ContentJSON    bool
+	ContentBatch   bool
+	Lcfg           *logger.Config
 }
 
 const (
@@ -21,9 +25,10 @@ const (
 	PollIntervalDefault   int64  = 2
 	LevelDefault          string = "info"
 	ContentJSONDefault    bool   = true
+	ContentBatchDefault   bool   = true
 )
 
-func GetConfig() *Config {
+func GetConfig(l *logger.Logger) *Config {
 	cfg := new(Config)
 	flag.StringVar(&cfg.Address, "a", AddressDefault, "address and port to run server")
 	flag.StringVar(&cfg.Level, "l", LevelDefault, "level logging")
@@ -31,7 +36,12 @@ func GetConfig() *Config {
 	flag.Int64Var(&cfg.PollInterval, "p", PollIntervalDefault, "PollInterval")
 	flag.BoolVar(&cfg.ContentJSON, "j", ContentJSONDefault, "ContentJSON true/false")
 
+	flag.BoolVar(&cfg.ContentBatch, "b", ContentBatchDefault, "ContentBatch true/false")
+
 	flag.Parse()
+
+	cfg.Lcfg = new(logger.Config)
+	cfg.Lcfg.Level = cfg.Level
 
 	if envRunAddr := os.Getenv("ADDRESS"); envRunAddr != "" {
 		cfg.Address = envRunAddr
@@ -40,7 +50,7 @@ func GetConfig() *Config {
 	if envReportInterval := os.Getenv("REPORT_INTERVAL"); envReportInterval != "" {
 		val, err := strconv.Atoi(envReportInterval)
 		if err != nil {
-			log.Fatalln("Error in converting env report interval to int: ", err)
+			l.L.Debug("Error in converting env report interval to int:", zap.Error(err))
 		} else {
 			cfg.ReportInterval = int64(val)
 		}
@@ -49,7 +59,7 @@ func GetConfig() *Config {
 	if envPollInterval := os.Getenv("POLL_INTERVAL"); envPollInterval != "" {
 		val, err := strconv.Atoi(envPollInterval)
 		if err != nil {
-			log.Fatalln("Error in converting env report interval to int: ", err)
+			l.L.Debug("Error in converting env report interval to int:", zap.Error(err))
 		} else {
 			cfg.PollInterval = int64(val)
 		}

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 
 	"github.com/4aleksei/metricscum/internal/common/models"
@@ -9,8 +10,8 @@ import (
 )
 
 type AgentMetricsStorage interface {
-	Add(string, valuemetric.ValueMetric) valuemetric.ValueMetric
-	ReadAllClearCounters(memstorage.FuncReadAllMetric) error
+	Add(context.Context, string, valuemetric.ValueMetric) (valuemetric.ValueMetric, error)
+	ReadAllClearCounters(context.Context, memstorage.FuncReadAllMetric) error
 }
 
 type HandlerStore struct {
@@ -27,30 +28,44 @@ var (
 	ErrBadValue = errors.New("invalid value")
 )
 
-func (h *HandlerStore) SetGauge(name string, val float64) {
+func (h *HandlerStore) SetGauge(ctx context.Context, name string, val float64) {
 	valMetric := valuemetric.ConvertToFloatValueMetric(val)
-	_ = h.store.Add(name, *valMetric)
+	_, _ = h.store.Add(ctx, name, *valMetric)
 }
 
-func (h *HandlerStore) SetCounter(name string, val int64) {
+func (h *HandlerStore) SetCounter(ctx context.Context, name string, val int64) {
 	valMetric := valuemetric.ConvertToIntValueMetric(val)
-	_ = h.store.Add(name, *valMetric)
+	_, _ = h.store.Add(ctx, name, *valMetric)
 }
 
-func (h *HandlerStore) RangeMetrics(prog func(string) error) error {
-	err := h.store.ReadAllClearCounters(func(key string, val valuemetric.ValueMetric) error {
+func (h *HandlerStore) RangeMetrics(ctx context.Context, prog func(context.Context, string) error) error {
+	err := h.store.ReadAllClearCounters(ctx, func(key string, val valuemetric.ValueMetric) error {
 		typename, valstr := valuemetric.ConvertValueMetricToPlain(val)
 		data := typename + "/" + key + "/" + valstr
-		return prog(data)
+		return prog(ctx, data)
 	})
 	return err
 }
 
-func (h *HandlerStore) RangeMetricsJSON(prog func(*models.Metrics) error) error {
-	err := h.store.ReadAllClearCounters(func(key string, val valuemetric.ValueMetric) error {
+func (h *HandlerStore) RangeMetricsJSON(ctx context.Context, prog func(context.Context, *models.Metrics) error) error {
+	err := h.store.ReadAllClearCounters(ctx, func(key string, val valuemetric.ValueMetric) error {
 		valNewModel := new(models.Metrics)
 		valNewModel.ConvertMetricToModel(key, val)
-		return prog(valNewModel)
+		return prog(ctx, valNewModel)
 	})
 	return err
+}
+
+func (h *HandlerStore) RangeMetricsJSONS(ctx context.Context, prog func(context.Context, []models.Metrics) error) error {
+	resmodels := make([]models.Metrics, 0, 1)
+	err := h.store.ReadAllClearCounters(ctx, func(key string, val valuemetric.ValueMetric) error {
+		var valNewModel models.Metrics
+		valNewModel.ConvertMetricToModel(key, val)
+		resmodels = append(resmodels, valNewModel)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return prog(ctx, resmodels)
 }

@@ -6,16 +6,19 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/4aleksei/metricscum/cmd/server/migrate"
 	"github.com/4aleksei/metricscum/internal/common/logger"
-	"github.com/4aleksei/metricscum/internal/common/repository"
-	"github.com/4aleksei/metricscum/internal/common/repository/longtermfile"
-	"github.com/4aleksei/metricscum/internal/common/streams/compressors/zipdata"
-	"github.com/4aleksei/metricscum/internal/common/streams/encoders/jsonencdec"
-	"github.com/4aleksei/metricscum/internal/common/streams/sources/singlefile"
 	"github.com/4aleksei/metricscum/internal/server/config"
 	"github.com/4aleksei/metricscum/internal/server/handlers"
+	"github.com/4aleksei/metricscum/internal/server/resources"
 	"github.com/4aleksei/metricscum/internal/server/service"
+	"go.uber.org/zap"
+)
+
+const (
+	defaultHTTPshutdown int = 10
 )
 
 func main() {
@@ -26,47 +29,53 @@ func main() {
 
 func run() error {
 	cfg := config.GetConfig()
-
 	l, err := logger.NewLog(cfg.Level)
 	if err != nil {
 		return err
 	}
-	fileWork := longtermfile.NewLongTerm(singlefile.NewReader(cfg.FilePath),
-		jsonencdec.NewReader(), singlefile.NewWriter(cfg.FilePath), jsonencdec.NewWriter())
 
-	fileWork.UseForWriter(zipdata.NewWriter())
-	fileWork.UseForReader(zipdata.NewReader())
+	if cfg.DBcfg.DatabaseDSN != "" {
+		err := migrate.Migrate(l, cfg.DBcfg.DatabaseDSN, "up")
+		if err != nil {
+			l.Error("Error goose UP migration:", zap.Error(err))
+			return err
+		}
+	}
 
-	store := repository.NewStoreMuxFiles(&cfg.Repcfg, l, fileWork)
-	store.DataRun()
+	storageRes, err := resources.CreateResouces(cfg, l)
+	if err != nil {
+		l.Error("Error cretae resources :", zap.Error(err))
+		return err
+	}
 
-	metricsService := service.NewHandlerStore(store)
+	metricsService := service.NewHandlerStore(storageRes.Store)
 	server := handlers.NewHandlers(metricsService, cfg, l)
+
+	server.Serve()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		sig := <-sigs
-		log.Println()
-		log.Println("Server is shutting down...", sig)
+	sig := <-sigs
 
-		err := server.Srv.Shutdown(context.TODO())
-		if err != nil {
-			log.Println(err)
-		} else {
-			log.Println("Server has been stopped")
-		}
-		store.DataWrite()
+	l.Info("Server is shutting down...", zap.String("signal", sig.String()))
 
-		err = l.Sync()
-		if err != nil {
-			log.Println(err)
-		} else {
-			log.Println("Logger has been flushed")
-		}
+	shutdownCtx, shutdownRelease := context.WithTimeout(context.Background(), time.Duration(defaultHTTPshutdown)*time.Second)
+	defer shutdownRelease()
 
-		os.Exit(1)
-	}()
+	if err := server.Srv.Shutdown(shutdownCtx); err != nil {
+		l.Error("HTTP shutdown error :", zap.Error(err))
+	} else {
+		l.Info("Server shutdown complete")
+	}
 
-	return server.Serve()
+	err = storageRes.Close(context.Background())
+	if err != nil {
+		l.Error("Resources close error :", zap.Error(err))
+	} else {
+		l.Info("Resources close complete")
+	}
+
+	_ = l.Sync()
+
+	return nil
 }
