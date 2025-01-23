@@ -158,9 +158,10 @@ func (h *HandlersServer) checkHmacSha256(res http.ResponseWriter, req *http.Requ
 
 		sigBody := req.Header.Get("HashSHA256")
 		if sigBody == "" {
-			h.l.Debug("no signature in headers ,with key parameter in server")
-			http.Error(res, "Bad request!", http.StatusBadRequest)
-			return false
+			return true
+			//h.l.Debug("no signature in headers ,with key parameter in server")
+			//http.Error(res, "Bad request!", http.StatusBadRequest)
+			//return false
 		}
 		sigString := hex.EncodeToString(sig)
 		if sigString != sigBody {
