@@ -338,7 +338,8 @@ func (h *HandlersServer) mainPostPagePlain(res http.ResponseWriter, req *http.Re
 	switch req.Header.Get("Accept") {
 	case textHTMLContent:
 		res.Header().Add("Content-Type", textHTMLContent)
-
+	case applicationJSONContent:
+		res.Header().Add("Content-Type", applicationJSONContent)
 	default:
 		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	}
@@ -365,6 +366,8 @@ func (h *HandlersServer) mainPageGetPlain(res http.ResponseWriter, req *http.Req
 	switch req.Header.Get("Accept") {
 	case textHTMLContent:
 		res.Header().Add("Content-Type", textHTMLContent)
+	case applicationJSONContent:
+		res.Header().Add("Content-Type", applicationJSONContent)
 	default:
 		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	}
@@ -396,6 +399,8 @@ func (h *HandlersServer) mainPage(res http.ResponseWriter, req *http.Request) {
 		switch req.Header.Get("Accept") {
 		case textHTMLContent:
 			res.Header().Add("Content-Type", textHTMLContent)
+		case applicationJSONContent:
+			res.Header().Add("Content-Type", applicationJSONContent)
 		default:
 			res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 		}
