@@ -15,6 +15,8 @@ type Config struct {
 
 	Repcfg repository.Config
 	DBcfg  pg.Config
+
+	Key string
 }
 
 const (
@@ -22,6 +24,7 @@ const (
 	LevelDefault       string = "debug"
 	FilePathDefault    string = "./data.store"
 	databaseDSNDefault string = ""
+	KeyDefault         string = ""
 )
 
 func readConfigFlag(cfg *pg.Config) {
@@ -43,6 +46,7 @@ func GetConfig() *Config {
 	repository.ReadConfigFlag(&cfg.Repcfg)
 	readConfigFlag(&cfg.DBcfg)
 
+	flag.StringVar(&cfg.Key, "k", KeyDefault, "key for signature")
 	flag.Parse()
 
 	if envRunAddr := os.Getenv("ADDRESS"); envRunAddr != "" {
@@ -51,6 +55,10 @@ func GetConfig() *Config {
 	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
 		cfg.FilePath = envFilePath
 	}
+	if envKey := os.Getenv("KEY"); envKey != "" {
+		cfg.Key = envKey
+	}
+
 	repository.ReadConfigEnv(&cfg.Repcfg)
 	readConfigEnv(&cfg.DBcfg)
 

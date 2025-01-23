@@ -17,6 +17,7 @@ type Config struct {
 	ContentJSON    bool
 	ContentBatch   bool
 	Lcfg           *logger.Config
+	Key            string
 }
 
 const (
@@ -26,6 +27,7 @@ const (
 	LevelDefault          string = "info"
 	ContentJSONDefault    bool   = true
 	ContentBatchDefault   bool   = true
+	KeyDefault            string = ""
 )
 
 func GetConfig(l *logger.Logger) *Config {
@@ -38,6 +40,8 @@ func GetConfig(l *logger.Logger) *Config {
 
 	flag.BoolVar(&cfg.ContentBatch, "b", ContentBatchDefault, "ContentBatch true/false")
 
+	flag.StringVar(&cfg.Key, "k", KeyDefault, "key for signature")
+
 	flag.Parse()
 
 	cfg.Lcfg = new(logger.Config)
@@ -45,6 +49,10 @@ func GetConfig(l *logger.Logger) *Config {
 
 	if envRunAddr := os.Getenv("ADDRESS"); envRunAddr != "" {
 		cfg.Address = envRunAddr
+	}
+
+	if envKey := os.Getenv("KEY"); envKey != "" {
+		cfg.Key = envKey
 	}
 
 	if envReportInterval := os.Getenv("REPORT_INTERVAL"); envReportInterval != "" {

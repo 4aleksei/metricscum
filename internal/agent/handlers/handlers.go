@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 
+	"encoding/hex"
 	"io"
 	"net"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/4aleksei/metricscum/internal/agent/config"
 	"github.com/4aleksei/metricscum/internal/agent/service"
 	"github.com/4aleksei/metricscum/internal/common/logger"
+	"github.com/4aleksei/metricscum/internal/common/middleware/hmacsha256"
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/utils"
 	"go.uber.org/zap"
@@ -63,12 +65,17 @@ func (app *App) newPPostReq(ctx context.Context, client *http.Client, server str
 	return nil
 }
 
-func (app *App) newJPostReq(ctx context.Context, client *http.Client, server string, requestBody io.Reader) error {
+func (app *App) newJPostReq(ctx context.Context, client *http.Client, server string, requestBody io.Reader, key string) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", server, requestBody)
 	if err != nil {
 		app.l.L.Debug("Error create new request", zap.Error(err))
 		return err
 	}
+
+	if key != "" {
+		req.Header.Set("HashSHA256", key)
+	}
+
 	req.Header.Set("Accept-Encoding", gzipContent)
 	req.Header.Set("Content-Encoding", gzipContent)
 	req.Header.Set("Content-Type", applicationJSONContent)
@@ -127,15 +134,31 @@ func (app *App) run(ctx context.Context) {
 
 	var jsonModelFunc = func(ctx context.Context, data *models.Metrics) error {
 		var requestBody bytes.Buffer
-		gz := gzip.NewWriter(&requestBody)
-		err := data.JSONEncodeBytes(gz)
-		gz.Close()
-		if err != nil {
-			app.l.L.Debug("error json encoding", zap.Error(err))
-			return err
+		var key string
+
+		if app.cfg.Key != "" {
+			gz := gzip.NewWriter(&requestBody)
+			hmac := hmacsha256.NewWriter(gz, []byte(app.cfg.Key))
+			err := data.JSONEncodeBytes(hmac)
+			if err != nil {
+				app.l.L.Debug("error json encoding", zap.Error(err))
+				return err
+			}
+			gz.Close()
+			key = hex.EncodeToString(hmac.GetSig())
+
+		} else {
+			gz := gzip.NewWriter(&requestBody)
+			err := data.JSONEncodeBytes(gz)
+			gz.Close()
+			if err != nil {
+				app.l.L.Debug("error json encoding", zap.Error(err))
+				return err
+			}
 		}
-		err = utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
-			return app.newJPostReq(ctx, client, server, &requestBody)
+
+		err := utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
+			return app.newJPostReq(ctx, client, server, &requestBody, key)
 		})
 		if err != nil {
 			return err
@@ -144,17 +167,30 @@ func (app *App) run(ctx context.Context) {
 	}
 	var jsonModelSFunc = func(ctx context.Context, data []models.Metrics) error {
 		var requestBody bytes.Buffer
-		gz := gzip.NewWriter(&requestBody)
-		err := models.JSONSEncodeBytes(gz, data)
-		gz.Close()
-		if err != nil {
-			app.l.L.Debug("error json encoding", zap.Error(err))
-			return err
+		var key string
+		if app.cfg.Key != "" {
+			gz := gzip.NewWriter(&requestBody)
+			hmac := hmacsha256.NewWriter(gz, []byte(app.cfg.Key))
+			err := models.JSONSEncodeBytes(hmac, data)
+			if err != nil {
+				app.l.L.Debug("error json encoding", zap.Error(err))
+				return err
+			}
+			gz.Close()
+			key = hex.EncodeToString(hmac.GetSig())
+		} else {
+			gz := gzip.NewWriter(&requestBody)
+			err := models.JSONSEncodeBytes(gz, data)
+			if err != nil {
+				app.l.L.Debug("error json encoding", zap.Error(err))
+				return err
+			}
+			gz.Close()
 		}
 
 		serverupdates := "http://" + app.cfg.Address + "/updates/"
-		err = utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
-			return app.newJPostReq(ctx, client, serverupdates, &requestBody)
+		err := utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
+			return app.newJPostReq(ctx, client, serverupdates, &requestBody, key)
 		})
 
 		if err != nil {
