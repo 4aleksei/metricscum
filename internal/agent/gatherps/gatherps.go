@@ -1,0 +1,81 @@
+package gatherps
+
+import (
+	"context"
+
+	"strconv"
+	"sync"
+	"time"
+
+	"github.com/4aleksei/metricscum/internal/agent/config"
+	"github.com/4aleksei/metricscum/internal/agent/service"
+	"github.com/4aleksei/metricscum/internal/common/logger"
+	"github.com/4aleksei/metricscum/internal/common/utils"
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
+)
+
+type AppGatherMem struct {
+	serv   *service.HandlerStore
+	l      *logger.Logger
+	cfg    *config.Config
+	wg     sync.WaitGroup
+	cancel context.CancelFunc
+}
+
+func NewGather(serv *service.HandlerStore, l *logger.Logger, cfg *config.Config) *AppGatherMem {
+	app := new(AppGatherMem)
+	app.l = l
+	app.serv = serv
+	app.wg = sync.WaitGroup{}
+	app.cfg = cfg
+	return app
+}
+
+func (app *AppGatherMem) Start(ctx context.Context) error {
+	app.wg = sync.WaitGroup{}
+	ctxCancel, cancel := context.WithCancel(context.Background())
+	app.cancel = cancel
+	app.wg.Add(1)
+	go app.mainGather(ctxCancel)
+	return nil
+}
+
+func (app *AppGatherMem) Stop(ctx context.Context) error {
+	app.cancel()
+	app.wg.Wait()
+	return nil
+}
+
+func (app *AppGatherMem) mainGather(ctx context.Context) {
+	defer app.wg.Done()
+	var first = true
+	app.l.L.Info("Start gathering stats.")
+
+	for {
+		utils.SleepContext(ctx, time.Duration(app.cfg.PollInterval)*time.Second)
+		select {
+		case <-ctx.Done():
+			app.l.L.Info("Stop gathering.")
+			return
+		default:
+
+			v, _ := mem.VirtualMemory()
+
+			app.serv.SetGauge(ctx, "TotalMemory", float64(v.Total))
+			app.serv.SetGauge(ctx, "FreeMemory", float64(v.Free))
+
+			c, _ := cpu.Percent(0, true)
+
+			if !first {
+				var name []string
+				for i := range c {
+					name = append(name, "CPUutilization"+strconv.Itoa(i+1))
+				}
+				app.serv.SetGaugeMulti(ctx, name, c)
+			} else {
+				first = false
+			}
+		}
+	}
+}

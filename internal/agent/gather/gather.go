@@ -27,13 +27,14 @@ func NewAppGather(serv *service.HandlerStore, l *logger.Logger, cfg *config.Conf
 	app.l = l
 	app.serv = serv
 	app.cfg = cfg
+
 	return app
 }
 
 func (app *AppGather) Start(ctx context.Context) error {
+	app.wg = sync.WaitGroup{}
 	ctxCancel, cancel := context.WithCancel(context.Background())
 	app.cancel = cancel
-	app.wg = sync.WaitGroup{}
 	app.wg.Add(1)
 	go app.mainGather(ctxCancel)
 	return nil

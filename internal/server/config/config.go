@@ -40,7 +40,7 @@ func readConfigEnv(cfg *pg.Config) {
 func GetConfig() *Config {
 	cfg := new(Config)
 	flag.StringVar(&cfg.Address, "a", AddressDefault, "address and port to run server")
-	flag.StringVar(&cfg.Level, "l", LevelDefault, "level of logging")
+	flag.StringVar(&cfg.Level, "v", LevelDefault, "level of logging")
 	flag.StringVar(&cfg.FilePath, "f", FilePathDefault, "FilePath store")
 
 	repository.ReadConfigFlag(&cfg.Repcfg)

@@ -147,7 +147,6 @@ func (h *HandlersServer) newRouter() http.Handler {
 }
 
 func (h *HandlersServer) checkHmacSha256(res http.ResponseWriter, req *http.Request) bool {
-
 	if h.key != "" {
 		sig, err := hmacsha256.GetSig(req.Body)
 		if err != nil {
@@ -157,11 +156,8 @@ func (h *HandlersServer) checkHmacSha256(res http.ResponseWriter, req *http.Requ
 		}
 
 		sigBody := req.Header.Get("HashSHA256")
-		if sigBody == "" {
+		if sigBody == "" { // accept data if no hash in body, but with secret key in app parameters . strange
 			return true
-			//h.l.Debug("no signature in headers ,with key parameter in server")
-			//http.Error(res, "Bad request!", http.StatusBadRequest)
-			//return false
 		}
 		sigString := hex.EncodeToString(sig)
 		if sigString != sigBody {
