@@ -17,4 +17,6 @@ type (
 		ID    JobID
 		Value []models.Metrics
 	}
+
+	JobDone struct{}
 )

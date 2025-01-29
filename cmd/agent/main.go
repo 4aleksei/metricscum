@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/4aleksei/metricscum/internal/agent/config"
@@ -22,14 +21,6 @@ func main() {
 }
 
 func registerSetLoggerLevel(ll *logger.Logger, cfg *config.Config, lc fx.Lifecycle) {
-	fmt.Println("")
-	fmt.Println("")
-	fmt.Println("")
-	fmt.Println(cfg.Lcfg.Level)
-	fmt.Println("")
-	fmt.Println("")
-	fmt.Println("")
-
 	ll.SetLevel(cfg.Lcfg.Level)
 	lc.Append(utils.ToHook(ll))
 }

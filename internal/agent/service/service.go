@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/4aleksei/metricscum/internal/common/logger"
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
+	"github.com/4aleksei/metricscum/internal/common/utils"
 
 	"github.com/4aleksei/metricscum/internal/agent/config"
 	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool"
@@ -36,6 +38,10 @@ func NewHandlerStore(store AgentMetricsStorage, pool *httpclientpool.PoolHandler
 		l:     l,
 	}
 }
+
+const (
+	waitGroupSleep int = 10
+)
 
 var (
 	ErrBadValue = errors.New("invalid value")
@@ -93,6 +99,7 @@ func (h *HandlerStore) RangeMetricsJSONS(ctx context.Context, prog func(context.
 	return prog(ctx, resmodels)
 }
 
+//gocyclo:ignore
 func (h *HandlerStore) SendMetrics(ctx context.Context) error {
 	resmodelsTX := make([]models.Metrics, 0, 1)
 	err := h.store.ReadAllClearCounters(ctx, func(key string, val valuemetric.ValueMetric) error {
@@ -106,40 +113,75 @@ func (h *HandlerStore) SendMetrics(ctx context.Context) error {
 		return err
 	}
 	h.l.L.Debug("Sending:", zap.Int("store len", len(resmodelsTX)))
-
 	var b = 1
 	if h.cfg.ContentBatch > 0 {
 		b = int(h.cfg.ContentBatch)
 	}
-
 	if b > len(resmodelsTX) {
 		b = len(resmodelsTX)
 	}
-	var x int
-	needModels := make(map[job.JobID]bool)
-	for ; x < len(resmodelsTX); x += b {
-		if (x + b) > len(resmodelsTX) {
-			b = len(resmodelsTX) - x
-			if b == 0 {
-				break
+	var errRes error
+	resultModels := make(map[job.JobID]job.Result, 0)
+
+	ctxCancel, cancel := context.WithCancel(ctx)
+	defer cancel()
+	wgRes := &utils.WaitGroupTimeout{}
+	var readDone = make(chan job.JobDone)
+	go func(ctx context.Context, wg *utils.WaitGroupTimeout) {
+		for {
+			select {
+			case <-ctx.Done():
+				h.l.L.Debug("Exit routin:")
+				return
+			default:
+				res, err := h.pool.GetResult(ctx, readDone)
+				if err != nil {
+					h.l.L.Debug("Done:", zap.Error(err))
+					return
+				}
+				h.l.L.Debug("GetJob:", zap.Int64("id", int64(res.ID)))
+				wg.Done()
+
+				if res.Err != nil {
+					errRes = res.Err
+					h.l.L.Error("error result:", zap.Error(errRes))
+				}
+				resultModels[res.ID] = res
 			}
 		}
-		id := h.pool.SendJob(ctx, resmodelsTX[x:x+b])
-		h.l.L.Debug("SendedJob:", zap.Int("batch_len", b), zap.Int64("id", int64(id)))
-		needModels[id] = true
+	}(ctxCancel, wgRes)
+
+	for x := 0; x < len(resmodelsTX); x += b {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+
+			if (x + b) > len(resmodelsTX) {
+				b = len(resmodelsTX) - x
+				if b == 0 {
+					break
+				}
+			}
+			wgRes.Add(1)
+
+			id := h.pool.SendJob(ctx, resmodelsTX[x:x+b])
+			h.l.L.Debug("SendedJob:", zap.Int("batch_len", b), zap.Int64("id", int64(id)))
+		}
 	}
 
-	var errRes error
-	resultModels := make(map[job.JobID]job.Result, len(needModels))
-	for range needModels {
-		res := h.pool.GetResult(ctx)
-		h.l.L.Debug("GetJob:", zap.Int64("id", int64(res.ID)))
-		if res.Err != nil {
-			errRes = res.Err
-			h.l.L.Error("error result:", zap.Error(errRes))
+	for {
+		e := wgRes.WaitWithTimeout(ctx, time.Duration(waitGroupSleep)*time.Second)
+		if e != nil {
+			if errors.Is(e, utils.ErrWgWaitTimeOut) {
+				continue
+			}
+			return ctx.Err()
 		}
-		resultModels[res.ID] = res
+		break
 	}
+	readDone <- job.JobDone{}
+	cancel()
 
 	if errRes != nil {
 		var rollBack []models.Metrics
@@ -152,6 +194,8 @@ func (h *HandlerStore) SendMetrics(ctx context.Context) error {
 			_, _ = h.store.AddMulti(ctx, rollBack)
 			h.l.L.Debug("Rollback :", zap.Int("len", len(rollBack)))
 		}
+	} else {
+		h.l.L.Debug("Sending success", zap.Int("len", len(resmodelsTX)))
 	}
 
 	return errRes

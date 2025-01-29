@@ -2,6 +2,7 @@ package httpclientpool
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"sync"
@@ -26,6 +27,11 @@ const (
 	textPlainContent       string = "text/plain"
 	applicationJSONContent string = "application/json"
 	gzipContent            string = "gzip"
+)
+
+var (
+	ErrReadDone   = errors.New("read done")
+	ErrChanClosed = errors.New("closed chan")
 )
 
 type PoolHandler struct {
@@ -97,9 +103,6 @@ func workerJSONBatch(ctx context.Context, client *http.Client, wg *sync.WaitGrou
 			results <- res
 
 		case <-ctx.Done():
-			results <- job.Result{
-				Err: ctx.Err(),
-			}
 			return
 		}
 	}
@@ -123,10 +126,6 @@ func workerJSON(ctx context.Context, client *http.Client, wg *sync.WaitGroup,
 			results <- res
 
 		case <-ctx.Done():
-
-			results <- job.Result{
-				Err: ctx.Err(),
-			}
 			return
 		}
 	}
@@ -152,9 +151,6 @@ func workerPlain(ctx context.Context, client *http.Client, wg *sync.WaitGroup,
 			results <- res
 
 		case <-ctx.Done():
-			results <- job.Result{
-				Err: ctx.Err(),
-			}
 			return
 		}
 	}
@@ -171,8 +167,18 @@ func (p *PoolHandler) SendJob(ctx context.Context, value []models.Metrics) job.J
 	return id
 }
 
-func (p *PoolHandler) GetResult(ctx context.Context) job.Result {
-	return <-p.results
+func (p *PoolHandler) GetResult(ctx context.Context, readDone <-chan job.JobDone) (job.Result, error) {
+	select {
+	case <-readDone:
+		return job.Result{}, ErrReadDone
+	case <-ctx.Done():
+		return job.Result{}, ctx.Err()
+	case res, ok := <-p.results:
+		if !ok {
+			return job.Result{}, ErrChanClosed
+		}
+		return res, nil
+	}
 }
 
 func (p *PoolHandler) Start(ctx context.Context) error {
@@ -191,10 +197,8 @@ func (p *PoolHandler) Stop(ctx context.Context) error {
 		cancel()
 	}
 	p.wg.Wait()
-
 	close(p.jobs)
 	close(p.results)
-
 	return nil
 }
 
