@@ -3,15 +3,16 @@ package httpclientpool
 import (
 	"context"
 	"errors"
+
 	"io"
 	"net/http"
 	"sync"
 
-	"github.com/4aleksei/metricscum/internal/agent/config"
-	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool/job"
-
 	"net"
 	"time"
+
+	"github.com/4aleksei/metricscum/internal/agent/config"
+	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool/job"
 
 	"bytes"
 	"compress/gzip"
@@ -88,22 +89,22 @@ func workerJSONBatch(ctx context.Context, client *http.Client, wg *sync.WaitGrou
 	server := "http://" + cfg.Address + "/updates/"
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case j, ok := <-jobs:
 			if !ok {
 				return
 			}
 
 			err := jsonModelSFunc(ctx, server, client, j.Value, cfg.Key)
-
+			if err != nil && errors.Is(err, context.Canceled) {
+				return
+			}
 			var res = job.Result{
 				Err: err,
 				ID:  j.ID,
 			}
-
 			results <- res
-
-		case <-ctx.Done():
-			return
 		}
 	}
 }
@@ -114,19 +115,21 @@ func workerJSON(ctx context.Context, client *http.Client, wg *sync.WaitGroup,
 	server := "http://" + cfg.Address + "/update/"
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case j, ok := <-jobs:
 			if !ok {
 				return
 			}
 			err := jsonModelFunc(ctx, server, client, &j.Value[0], cfg.Key)
+			if err != nil && errors.Is(err, context.Canceled) {
+				return
+			}
 			var res = job.Result{
 				Err: err,
 				ID:  j.ID,
 			}
 			results <- res
-
-		case <-ctx.Done():
-			return
 		}
 	}
 }
@@ -137,21 +140,22 @@ func workerPlain(ctx context.Context, client *http.Client, wg *sync.WaitGroup,
 	server := "http://" + cfg.Address + "/update/"
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case j, ok := <-jobs:
 			if !ok {
 				return
 			}
 			data := j.Value[0].MType + "/" + j.Value[0].ID + "/" + j.Value[0].ConvertMetricToValue()
 			err := plainTxtFunc(ctx, client, server, data)
+			if err != nil && errors.Is(err, context.Canceled) {
+				return
+			}
 			var res = job.Result{
 				Err: err,
 				ID:  j.ID,
 			}
-
 			results <- res
-
-		case <-ctx.Done():
-			return
 		}
 	}
 }
@@ -167,10 +171,8 @@ func (p *PoolHandler) SendJob(ctx context.Context, value []models.Metrics) job.J
 	return id
 }
 
-func (p *PoolHandler) GetResult(ctx context.Context, readDone <-chan job.JobDone) (job.Result, error) {
+func (p *PoolHandler) GetResult(ctx context.Context) (job.Result, error) {
 	select {
-	case <-readDone:
-		return job.Result{}, ErrReadDone
 	case <-ctx.Done():
 		return job.Result{}, ctx.Err()
 	case res, ok := <-p.results:
@@ -182,7 +184,6 @@ func (p *PoolHandler) GetResult(ctx context.Context, readDone <-chan job.JobDone
 }
 
 func (p *PoolHandler) Start(ctx context.Context) error {
-	p.wg = sync.WaitGroup{}
 	for i := 0; i < int(p.workerCount); i++ {
 		p.wg.Add(1)
 		ctxCancel, cancel := context.WithCancel(context.Background())
@@ -193,8 +194,8 @@ func (p *PoolHandler) Start(ctx context.Context) error {
 }
 
 func (p *PoolHandler) Stop(ctx context.Context) error {
-	for _, cancel := range p.cancels {
-		cancel()
+	for i := 0; i < len(p.cancels); i++ {
+		p.cancels[i]()
 	}
 	p.wg.Wait()
 	close(p.jobs)

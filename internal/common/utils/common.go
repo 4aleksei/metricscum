@@ -76,9 +76,7 @@ func RetryAction(
 	for {
 		select {
 		case <-ctx.Done():
-
 			return ctx.Err()
-
 		default:
 
 			err = callback(ctx)

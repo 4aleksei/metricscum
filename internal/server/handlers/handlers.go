@@ -168,7 +168,6 @@ func (h *HandlersServer) checkHmacSha256(res http.ResponseWriter, req *http.Requ
 			h.l.Debug("Signature in body accepted")
 		}
 	}
-
 	return true
 }
 

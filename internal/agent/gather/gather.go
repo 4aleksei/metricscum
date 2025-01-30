@@ -23,16 +23,14 @@ type AppGather struct {
 }
 
 func NewAppGather(serv *service.HandlerStore, l *logger.Logger, cfg *config.Config) *AppGather {
-	app := new(AppGather)
-	app.l = l
-	app.serv = serv
-	app.cfg = cfg
-
-	return app
+	return &AppGather{
+		l:    l,
+		serv: serv,
+		cfg:  cfg,
+	}
 }
 
 func (app *AppGather) Start(ctx context.Context) error {
-	app.wg = sync.WaitGroup{}
 	ctxCancel, cancel := context.WithCancel(context.Background())
 	app.cancel = cancel
 	app.wg.Add(1)
@@ -67,12 +65,12 @@ func (app *AppGather) mainGather(ctx context.Context) {
 	app.l.L.Info("Start gathering stats.")
 
 	for {
+		utils.SleepContext(ctx, time.Duration(app.cfg.PollInterval)*time.Second)
 		select {
 		case <-ctx.Done():
 			app.l.L.Info("Stop gathering.")
 			return
 		default:
-			utils.SleepContext(ctx, time.Duration(app.cfg.PollInterval)*time.Second)
 			runtime.ReadMemStats(&m)
 			app.serv.SetGauge(ctx, "Alloc", float64(m.Alloc))
 			app.serv.SetGauge(ctx, "BuckHashSys", float64(m.BuckHashSys))

@@ -23,11 +23,11 @@ type App struct {
 }
 
 func NewApp(store *service.HandlerStore, l *logger.Logger, cfg *config.Config) *App {
-	p := new(App)
-	p.serv = store
-	p.cfg = cfg
-	p.l = l
-	return p
+	return &App{
+		serv: store,
+		cfg:  cfg,
+		l:    l,
+	}
 }
 
 func (app *App) Start(ctx context.Context) error {
@@ -47,11 +47,12 @@ func (app *App) Stop(ctx context.Context) error {
 
 func (app *App) run(ctx context.Context) {
 	defer app.wg.Done()
-
+	app.l.L.Info("Start reporting.")
 	for {
 		utils.SleepContext(ctx, time.Duration(app.cfg.ReportInterval)*time.Second)
 		select {
 		case <-ctx.Done():
+			app.l.L.Info("Stop reporting.")
 			return
 		default:
 			_ = app.serv.SendMetrics(ctx)

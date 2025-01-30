@@ -13,7 +13,6 @@ import (
 
 	"github.com/4aleksei/metricscum/internal/agent/config"
 	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool"
-	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool/job"
 	"go.uber.org/zap"
 )
 
@@ -99,7 +98,46 @@ func (h *HandlerStore) RangeMetricsJSONS(ctx context.Context, prog func(context.
 	return prog(ctx, resmodels)
 }
 
-//gocyclo:ignore
+func (h *HandlerStore) rollBackMetrics(ctx context.Context, resmodelsTX []models.Metrics) {
+	var rollBack []models.Metrics
+	for _, v := range resmodelsTX {
+		if v.MType == "counter" {
+			rollBack = append(rollBack, v)
+		}
+	}
+	if len(rollBack) > 0 {
+		_, _ = h.store.AddMulti(ctx, rollBack)
+		h.l.L.Debug("Rollback :", zap.Int("len", len(rollBack)))
+	}
+}
+
+func (h *HandlerStore) sendMetricsRun(ctx context.Context, resmodelsTX []models.Metrics, wgRes *utils.WaitGroupTimeout) error {
+	var b = 1
+	if h.cfg.ContentBatch > 0 {
+		b = int(h.cfg.ContentBatch)
+	}
+	if b > len(resmodelsTX) {
+		b = len(resmodelsTX)
+	}
+	for x := 0; x < len(resmodelsTX); x += b {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			if (x + b) > len(resmodelsTX) {
+				b = len(resmodelsTX) - x
+				if b == 0 {
+					break
+				}
+			}
+			wgRes.Add(1)
+			id := h.pool.SendJob(ctx, resmodelsTX[x:x+b])
+			h.l.L.Debug("SendedJob:", zap.Int("batch_len", b), zap.Int64("id", int64(id)))
+		}
+	}
+	return nil
+}
+
 func (h *HandlerStore) SendMetrics(ctx context.Context) error {
 	resmodelsTX := make([]models.Metrics, 0, 1)
 	err := h.store.ReadAllClearCounters(ctx, func(key string, val valuemetric.ValueMetric) error {
@@ -108,25 +146,16 @@ func (h *HandlerStore) SendMetrics(ctx context.Context) error {
 		resmodelsTX = append(resmodelsTX, valNewModel)
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
 	h.l.L.Debug("Sending:", zap.Int("store len", len(resmodelsTX)))
-	var b = 1
-	if h.cfg.ContentBatch > 0 {
-		b = int(h.cfg.ContentBatch)
-	}
-	if b > len(resmodelsTX) {
-		b = len(resmodelsTX)
-	}
-	var errRes error
-	resultModels := make(map[job.JobID]job.Result, 0)
 
+	var errRes error
 	ctxCancel, cancel := context.WithCancel(ctx)
 	defer cancel()
 	wgRes := &utils.WaitGroupTimeout{}
-	var readDone = make(chan job.JobDone)
+
 	go func(ctx context.Context, wg *utils.WaitGroupTimeout) {
 		for {
 			select {
@@ -134,7 +163,7 @@ func (h *HandlerStore) SendMetrics(ctx context.Context) error {
 				h.l.L.Debug("Exit routin:")
 				return
 			default:
-				res, err := h.pool.GetResult(ctx, readDone)
+				res, err := h.pool.GetResult(ctx)
 				if err != nil {
 					h.l.L.Debug("Done:", zap.Error(err))
 					return
@@ -146,57 +175,26 @@ func (h *HandlerStore) SendMetrics(ctx context.Context) error {
 					errRes = res.Err
 					h.l.L.Error("error result:", zap.Error(errRes))
 				}
-				resultModels[res.ID] = res
 			}
 		}
 	}(ctxCancel, wgRes)
 
-	for x := 0; x < len(resmodelsTX); x += b {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-
-			if (x + b) > len(resmodelsTX) {
-				b = len(resmodelsTX) - x
-				if b == 0 {
-					break
-				}
-			}
-			wgRes.Add(1)
-
-			id := h.pool.SendJob(ctx, resmodelsTX[x:x+b])
-			h.l.L.Debug("SendedJob:", zap.Int("batch_len", b), zap.Int64("id", int64(id)))
-		}
-	}
+	_ = h.sendMetricsRun(ctx, resmodelsTX, wgRes)
 
 	for {
-		e := wgRes.WaitWithTimeout(ctx, time.Duration(waitGroupSleep)*time.Second)
-		if e != nil {
-			if errors.Is(e, utils.ErrWgWaitTimeOut) {
+		err := wgRes.WaitWithTimeout(ctx, time.Duration(waitGroupSleep)*time.Second)
+		if err != nil {
+			if errors.Is(err, utils.ErrWgWaitTimeOut) {
 				continue
 			}
-			return ctx.Err()
+			return err
 		}
 		break
 	}
-	readDone <- job.JobDone{}
-	cancel()
-
 	if errRes != nil {
-		var rollBack []models.Metrics
-		for _, v := range resmodelsTX {
-			if v.MType == "counter" {
-				rollBack = append(rollBack, v)
-			}
-		}
-		if len(rollBack) > 0 {
-			_, _ = h.store.AddMulti(ctx, rollBack)
-			h.l.L.Debug("Rollback :", zap.Int("len", len(rollBack)))
-		}
+		h.rollBackMetrics(ctx, resmodelsTX)
 	} else {
 		h.l.L.Debug("Sending success", zap.Int("len", len(resmodelsTX)))
 	}
-
 	return errRes
 }
