@@ -49,7 +49,7 @@ func (app *App) run(ctx context.Context) {
 	defer app.wg.Done()
 	app.l.L.Info("Start reporting.")
 	for {
-		utils.SleepContext(ctx, time.Duration(app.cfg.ReportInterval)*time.Second)
+		utils.SleepCancellable(ctx, time.Duration(app.cfg.ReportInterval)*time.Second)
 		select {
 		case <-ctx.Done():
 			app.l.L.Info("Stop reporting.")

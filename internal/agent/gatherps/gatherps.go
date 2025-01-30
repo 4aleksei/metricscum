@@ -52,7 +52,7 @@ func (app *AppGatherMem) mainGather(ctx context.Context) {
 	app.l.L.Info("Start gatheringPS stats.")
 
 	for {
-		utils.SleepContext(ctx, time.Duration(app.cfg.PollInterval)*time.Second)
+		utils.SleepCancellable(ctx, time.Duration(app.cfg.PollInterval)*time.Second)
 		select {
 		case <-ctx.Done():
 			return

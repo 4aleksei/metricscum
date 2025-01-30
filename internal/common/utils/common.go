@@ -34,7 +34,7 @@ func (wg *WaitGroupTimeout) WaitWithTimeout(ctx context.Context, timeout time.Du
 	}
 }
 
-func SleepContext(ctx context.Context, t time.Duration) {
+func SleepCancellable(ctx context.Context, t time.Duration) {
 	sleep, cancel := context.WithTimeout(ctx, t)
 	defer cancel()
 	<-sleep.Done()
@@ -93,7 +93,7 @@ func RetryAction(
 				}
 
 				if shouldContinue && (len(timers) > 0) {
-					SleepContext(ctx, time.Duration(timers[0])*time.Millisecond)
+					SleepCancellable(ctx, time.Duration(timers[0])*time.Millisecond)
 					timers = timers[1:]
 
 					continue

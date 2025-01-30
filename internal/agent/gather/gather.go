@@ -65,7 +65,7 @@ func (app *AppGather) mainGather(ctx context.Context) {
 	app.l.L.Info("Start gathering stats.")
 
 	for {
-		utils.SleepContext(ctx, time.Duration(app.cfg.PollInterval)*time.Second)
+		utils.SleepCancellable(ctx, time.Duration(app.cfg.PollInterval)*time.Second)
 		select {
 		case <-ctx.Done():
 			app.l.L.Info("Stop gathering.")
