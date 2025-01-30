@@ -2,10 +2,39 @@ package utils
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"time"
 )
 
-func SleepContext(ctx context.Context, t time.Duration) {
+type WaitGroupTimeout struct {
+	sync.WaitGroup
+}
+
+var (
+	ErrWgWaitTimeOut = errors.New("wait timeout")
+)
+
+func (wg *WaitGroupTimeout) WaitWithTimeout(ctx context.Context, timeout time.Duration) error {
+	timeoutChan := time.After(timeout)
+	waitChan := make(chan struct{})
+
+	go func() {
+		wg.Wait()
+		close(waitChan)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timeoutChan:
+		return ErrWgWaitTimeOut
+	case <-waitChan:
+		return nil
+	}
+}
+
+func SleepCancellable(ctx context.Context, t time.Duration) {
 	sleep, cancel := context.WithTimeout(ctx, t)
 	defer cancel()
 	<-sleep.Done()
@@ -47,9 +76,7 @@ func RetryAction(
 	for {
 		select {
 		case <-ctx.Done():
-
 			return ctx.Err()
-
 		default:
 
 			err = callback(ctx)
@@ -66,7 +93,7 @@ func RetryAction(
 				}
 
 				if shouldContinue && (len(timers) > 0) {
-					SleepContext(ctx, time.Duration(timers[0])*time.Millisecond)
+					SleepCancellable(ctx, time.Duration(timers[0])*time.Millisecond)
 					timers = timers[1:]
 
 					continue

@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"io"
+	"strconv"
 
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
 )
@@ -19,6 +20,15 @@ func (valModels *Metrics) ConvertMetricToModel(name string, valMetrics valuemetr
 	valModels.MType = valMetrics.GetTypeStr()
 	valModels.Delta = valMetrics.ValueInt()
 	valModels.Value = valMetrics.ValueFloat()
+}
+
+func (valModels *Metrics) ConvertMetricToValue() string {
+	if valModels.Delta != nil {
+		return strconv.FormatInt(*valModels.Delta, 10)
+	} else if valModels.Value != nil {
+		return strconv.FormatFloat(*valModels.Value, 'f', -1, 64)
+	}
+	return ""
 }
 
 func (valModels *Metrics) JSONDecode(body io.ReadCloser) error {

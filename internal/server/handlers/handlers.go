@@ -3,16 +3,20 @@ package handlers
 import (
 	"bytes"
 	"database/sql"
+
+	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/4aleksei/metricscum/internal/common/middleware/hmacsha256"
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
 	"github.com/4aleksei/metricscum/internal/server/config"
 	"github.com/4aleksei/metricscum/internal/server/handlers/middleware/httpgzip"
+	"github.com/4aleksei/metricscum/internal/server/handlers/middleware/httphmacsha256"
 	"github.com/4aleksei/metricscum/internal/server/handlers/middleware/httplogs"
 	"github.com/4aleksei/metricscum/internal/server/service"
 	"github.com/go-chi/chi/v5"
@@ -26,6 +30,7 @@ type (
 		cfg   *config.Config
 		Srv   *http.Server
 		l     *zap.Logger
+		key   string
 	}
 )
 
@@ -38,6 +43,7 @@ func NewHandlers(store *service.HandlerStore, cfg *config.Config, l *zap.Logger)
 	h := new(HandlersServer)
 	h.store = store
 	h.cfg = cfg
+	h.key = h.cfg.Key
 	h.l = l
 	h.Srv = &http.Server{
 		Addr:              h.cfg.Address,
@@ -105,11 +111,26 @@ func (h *HandlersServer) gzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(gzipfn)
 }
 
+func (h *HandlersServer) hmacsha256Middleware(next http.Handler) http.Handler {
+	hmacsha256fn := func(w http.ResponseWriter, r *http.Request) {
+		ow := httphmacsha256.NewWriter(w, []byte(h.cfg.Key))
+
+		r.Body = hmacsha256.NewReader(r.Body, []byte(h.cfg.Key))
+
+		next.ServeHTTP(ow, r)
+	}
+	return http.HandlerFunc(hmacsha256fn)
+}
+
 func (h *HandlersServer) newRouter() http.Handler {
 	mux := chi.NewRouter()
 
 	mux.Use(h.withLogging)
 	mux.Use(h.gzipMiddleware)
+	if h.key != "" {
+		mux.Use(h.hmacsha256Middleware)
+	}
+
 	mux.Use(middleware.Recoverer)
 
 	mux.Post("/update/", h.mainPageJSON)
@@ -125,6 +146,31 @@ func (h *HandlersServer) newRouter() http.Handler {
 	return mux
 }
 
+func (h *HandlersServer) checkHmacSha256(res http.ResponseWriter, req *http.Request) bool {
+	if h.key != "" {
+		sig, err := hmacsha256.GetSig(req.Body)
+		if err != nil {
+			h.l.Error("error read request", zap.Error(err))
+			res.WriteHeader(http.StatusInternalServerError)
+			return false
+		}
+
+		sigBody := req.Header.Get("HashSHA256")
+		if sigBody == "" { // accept data if no hash in body, but with secret key in app parameters . strange
+			return true
+		}
+		sigString := hex.EncodeToString(sig)
+		if sigString != sigBody {
+			h.l.Debug("Signature in body NOT equal calculated signature", zap.String("b", sigBody), zap.String("cb", sigString))
+			http.Error(res, "Bad request!", http.StatusBadRequest)
+			return false
+		} else {
+			h.l.Debug("Signature in body accepted")
+		}
+	}
+	return true
+}
+
 func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != applicationJSONContent {
 		http.Error(res, "Bad type!", http.StatusBadRequest)
@@ -136,6 +182,11 @@ func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	if !h.checkHmacSha256(res, req) {
+		return
+	}
+
 	val, err := h.store.SetValueModel(req.Context(), JSONstr)
 	if err != nil {
 		if errors.Is(err, service.ErrBadName) {
@@ -167,11 +218,17 @@ func (h *HandlersServer) mainPageJSONs(res http.ResponseWriter, req *http.Reques
 	}
 
 	JSONstrs, err := models.JSONSDecode(req.Body)
+
 	if err != nil {
 		h.l.Debug("cannot decode request JSON body", zap.Error(err))
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	if !h.checkHmacSha256(res, req) {
+		return
+	}
+
 	val, err := h.store.SetValueSModel(req.Context(), JSONstrs)
 	if err != nil {
 		if errors.Is(err, service.ErrBadName) {
@@ -207,6 +264,11 @@ func (h *HandlersServer) mainPageGetJSON(res http.ResponseWriter, req *http.Requ
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	if !h.checkHmacSha256(res, req) {
+		return
+	}
+
 	val, err := h.store.GetValueModel(req.Context(), JSONstr)
 	if err != nil {
 		if errors.Is(err, service.ErrBadName) || errors.Is(err, memstorage.ErrNotFoundName) || errors.Is(err, sql.ErrNoRows) {
@@ -272,7 +334,8 @@ func (h *HandlersServer) mainPostPagePlain(res http.ResponseWriter, req *http.Re
 	switch req.Header.Get("Accept") {
 	case textHTMLContent:
 		res.Header().Add("Content-Type", textHTMLContent)
-
+	case applicationJSONContent:
+		res.Header().Add("Content-Type", applicationJSONContent)
 	default:
 		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	}
@@ -299,6 +362,8 @@ func (h *HandlersServer) mainPageGetPlain(res http.ResponseWriter, req *http.Req
 	switch req.Header.Get("Accept") {
 	case textHTMLContent:
 		res.Header().Add("Content-Type", textHTMLContent)
+	case applicationJSONContent:
+		res.Header().Add("Content-Type", applicationJSONContent)
 	default:
 		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	}
@@ -330,6 +395,8 @@ func (h *HandlersServer) mainPage(res http.ResponseWriter, req *http.Request) {
 		switch req.Header.Get("Accept") {
 		case textHTMLContent:
 			res.Header().Add("Content-Type", textHTMLContent)
+		case applicationJSONContent:
+			res.Header().Add("Content-Type", applicationJSONContent)
 		default:
 			res.Header().Add("Content-Type", "text/plain; charset=utf-8")
 		}
