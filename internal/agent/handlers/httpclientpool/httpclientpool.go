@@ -3,7 +3,6 @@ package httpclientpool
 import (
 	"context"
 	"errors"
-
 	"io"
 	"net/http"
 	"sync"
@@ -34,7 +33,6 @@ var (
 	ErrReadDone   = errors.New("read done")
 	ErrChanClosed = errors.New("closed chan")
 )
-
 
 type (
 	PoolHandler struct {
@@ -100,7 +98,6 @@ func newClient() *http.Client {
 	}
 }
 
-
 func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config) {
 	defer wg.Done()
@@ -124,7 +121,6 @@ func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *http.Clien
 	}
 }
 
-
 func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config) {
 	defer wg.Done()
@@ -134,7 +130,6 @@ func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 		case <-ctx.Done():
 			return
 		default:
-
 			err := jsonModelFunc(ctx, server, client, &j.Value[0], cfg.Key)
 			if err != nil && errors.Is(err, context.Canceled) {
 				return
@@ -157,7 +152,6 @@ func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 		case <-ctx.Done():
 			return
 		default:
-
 			data := j.Value[0].MType + "/" + j.Value[0].ID + "/" + j.Value[0].ConvertMetricToValue()
 			err := plainTxtFunc(ctx, client, server, data)
 			if err != nil && errors.Is(err, context.Canceled) {
@@ -172,7 +166,6 @@ func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 	}
 }
 
-
 func (p *PoolHandler) StartPool(ctx context.Context, jobs chan job.Job, results chan job.Result, wg *sync.WaitGroup) {
 	for i := 0; i < int(p.WorkerCount); i++ {
 		wg.Add(1)
@@ -181,7 +174,6 @@ func (p *PoolHandler) StartPool(ctx context.Context, jobs chan job.Job, results 
 }
 
 /*func (p *PoolHandler) GetResult(ctx context.Context) (job.Result, error) {
-
 	select {
 	case <-ctx.Done():
 		return job.Result{}, ctx.Err()
@@ -191,7 +183,6 @@ func (p *PoolHandler) StartPool(ctx context.Context, jobs chan job.Job, results 
 		}
 		return res, nil
 	}
-
 }*/
 
 func (p *PoolHandler) Start(ctx context.Context) error {
@@ -199,12 +190,12 @@ func (p *PoolHandler) Start(ctx context.Context) error {
 		p.wg.Add(1)
 		ctxCancel, cancel := context.WithCancel(context.Background())
 		p.cancels = append(p.cancels, cancel)
-		go p.execFn(ctxCancel, newClient(), &p.wg, p.jobs, p.results, p.cfg)*/
+		go p.execFn(ctxCancel, newClient(), &p.wg, p.jobs, p.results, p.cfg)
+	}*/
 	return nil
 }
 
 func (p *PoolHandler) Stop(ctx context.Context) error {
-
 	/*	for i := 0; i < len(p.cancels); i++ {
 			p.cancels[i]()
 		}
