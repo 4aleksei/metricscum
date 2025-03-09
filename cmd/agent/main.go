@@ -37,10 +37,6 @@ func registerRunnersSender(cc *handlers.App, lc fx.Lifecycle) {
 	lc.Append(utils.ToHook(cc))
 }
 
-func registerRunnersPool(cc *httpclientpool.PoolHandler, lc fx.Lifecycle) {
-	lc.Append(utils.ToHook(cc))
-}
-
 func setupFX() *fx.App {
 	app := fx.New(
 		fx.Supply(logger.Config{Level: "debug"}),
@@ -62,7 +58,6 @@ func setupFX() *fx.App {
 		}),
 		fx.Invoke(
 			registerSetLoggerLevel,
-			registerRunnersPool,
 			registerRunnersSender,
 			registerRunnersGather,
 			registerRunnersGatherps,

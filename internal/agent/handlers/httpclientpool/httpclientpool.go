@@ -3,7 +3,6 @@ package httpclientpool
 import (
 	"context"
 	"errors"
-
 	"io"
 	"net/http"
 	"sync"
@@ -35,27 +34,43 @@ var (
 	ErrChanClosed = errors.New("closed chan")
 )
 
-type PoolHandler struct {
-	execFn      func(context.Context, *http.Client, *sync.WaitGroup, <-chan job.Job, chan<- job.Result, *config.Config)
-	workerCount int64
-	jid         job.JobID
-	jobs        chan job.Job
-	results     chan job.Result
-	wg          sync.WaitGroup
-	cfg         *config.Config
-	cancels     []context.CancelFunc
-}
+type (
+	PoolHandler struct {
+		WorkerCount int
 
-type functioExec func(context.Context, *http.Client, *sync.WaitGroup,
-	<-chan job.Job, chan<- job.Result, *config.Config)
+		//	jobs        chan job.Job
+		//	results     chan job.Result
+		//	wg          sync.WaitGroup
+		cfg     *config.Config
+		clients []clientInstance
+		// cancels     []context.CancelFunc
+	}
+	functioExec func(context.Context, *sync.WaitGroup, *http.Client,
+		<-chan job.Job, chan<- job.Result, *config.Config)
+	clientInstance struct {
+		execFn functioExec
+		client *http.Client
+		cfg    *config.Config
+		// cancels context.CancelFunc
+	}
+)
 
 func NewHandler(cfg *config.Config) *PoolHandler {
-	return &PoolHandler{
-		execFn:      poolOptions(cfg),
-		workerCount: cfg.RateLimit,
-		jobs:        make(chan job.Job, cfg.RateLimit*2),
-		results:     make(chan job.Result, cfg.RateLimit*2),
-		cfg:         cfg,
+	p := new(PoolHandler)
+	p.WorkerCount = int(cfg.RateLimit)
+	p.clients = make([]clientInstance, p.WorkerCount)
+	p.cfg = cfg
+	for i := 0; i < p.WorkerCount; i++ {
+		p.clients[i] = *newClientInstance(cfg)
+	}
+	return p
+}
+
+func newClientInstance(cfg *config.Config) *clientInstance {
+	return &clientInstance{
+		execFn: poolOptions(cfg),
+		client: newClient(),
+		cfg:    cfg,
 	}
 }
 
@@ -83,18 +98,15 @@ func newClient() *http.Client {
 	}
 }
 
-func workerJSONBatch(ctx context.Context, client *http.Client, wg *sync.WaitGroup,
+func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config) {
 	defer wg.Done()
 	server := "http://" + cfg.Address + "/updates/"
-	for {
+	for j := range jobs {
 		select {
 		case <-ctx.Done():
 			return
-		case j, ok := <-jobs:
-			if !ok {
-				return
-			}
+		default:
 
 			err := jsonModelSFunc(ctx, server, client, j.Value, cfg.Key)
 			if err != nil && errors.Is(err, context.Canceled) {
@@ -109,18 +121,15 @@ func workerJSONBatch(ctx context.Context, client *http.Client, wg *sync.WaitGrou
 	}
 }
 
-func workerJSON(ctx context.Context, client *http.Client, wg *sync.WaitGroup,
+func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config) {
 	defer wg.Done()
 	server := "http://" + cfg.Address + "/update/"
-	for {
+	for j := range jobs {
 		select {
 		case <-ctx.Done():
 			return
-		case j, ok := <-jobs:
-			if !ok {
-				return
-			}
+		default:
 			err := jsonModelFunc(ctx, server, client, &j.Value[0], cfg.Key)
 			if err != nil && errors.Is(err, context.Canceled) {
 				return
@@ -134,18 +143,15 @@ func workerJSON(ctx context.Context, client *http.Client, wg *sync.WaitGroup,
 	}
 }
 
-func workerPlain(ctx context.Context, client *http.Client, wg *sync.WaitGroup,
+func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config) {
 	defer wg.Done()
 	server := "http://" + cfg.Address + "/update/"
-	for {
+	for j := range jobs {
 		select {
 		case <-ctx.Done():
 			return
-		case j, ok := <-jobs:
-			if !ok {
-				return
-			}
+		default:
 			data := j.Value[0].MType + "/" + j.Value[0].ID + "/" + j.Value[0].ConvertMetricToValue()
 			err := plainTxtFunc(ctx, client, server, data)
 			if err != nil && errors.Is(err, context.Canceled) {
@@ -160,18 +166,14 @@ func workerPlain(ctx context.Context, client *http.Client, wg *sync.WaitGroup,
 	}
 }
 
-func (p *PoolHandler) newJid() job.JobID {
-	p.jid++
-	return p.jid
+func (p *PoolHandler) StartPool(ctx context.Context, jobs chan job.Job, results chan job.Result, wg *sync.WaitGroup) {
+	for i := 0; i < int(p.WorkerCount); i++ {
+		wg.Add(1)
+		go p.clients[i].execFn(ctx, wg, p.clients[i].client, jobs, results, p.cfg)
+	}
 }
 
-func (p *PoolHandler) SendJob(ctx context.Context, value []models.Metrics) job.JobID {
-	id := p.newJid()
-	p.jobs <- job.Job{ID: id, Value: value}
-	return id
-}
-
-func (p *PoolHandler) GetResult(ctx context.Context) (job.Result, error) {
+/*func (p *PoolHandler) GetResult(ctx context.Context) (job.Result, error) {
 	select {
 	case <-ctx.Done():
 		return job.Result{}, ctx.Err()
@@ -181,25 +183,25 @@ func (p *PoolHandler) GetResult(ctx context.Context) (job.Result, error) {
 		}
 		return res, nil
 	}
-}
+}*/
 
 func (p *PoolHandler) Start(ctx context.Context) error {
-	for i := 0; i < int(p.workerCount); i++ {
+	/*	for i := 0; i < int(p.workerCount); i++ {
 		p.wg.Add(1)
 		ctxCancel, cancel := context.WithCancel(context.Background())
 		p.cancels = append(p.cancels, cancel)
 		go p.execFn(ctxCancel, newClient(), &p.wg, p.jobs, p.results, p.cfg)
-	}
+	}*/
 	return nil
 }
 
 func (p *PoolHandler) Stop(ctx context.Context) error {
-	for i := 0; i < len(p.cancels); i++ {
-		p.cancels[i]()
-	}
-	p.wg.Wait()
-	close(p.jobs)
-	close(p.results)
+	/*	for i := 0; i < len(p.cancels); i++ {
+			p.cancels[i]()
+		}
+		p.wg.Wait()
+		close(p.jobs)
+		close(p.results)*/
 	return nil
 }
 
