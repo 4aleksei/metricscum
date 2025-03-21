@@ -59,3 +59,9 @@ tasks:
       cmds:
         - golangci-lint run --config .golangci.yml
       silent: true
+  test:
+      desc: Run tests
+      cmds:
+        - |
+          cd ./internal/server/handlers
+          go test -cover
