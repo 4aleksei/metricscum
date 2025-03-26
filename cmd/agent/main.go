@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-app.SetupFX().Run()
+	app.SetupFX().Run()
 }
