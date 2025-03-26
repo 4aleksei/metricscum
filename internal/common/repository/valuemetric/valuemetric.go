@@ -185,3 +185,17 @@ func ConvertValueMetricToPlain(val ValueMetric) (a, b string) {
 	}
 	return a, b
 }
+
+func ConvertValueMetricToPlainOpt(val ValueMetric) (b string) {
+	switch val.kind {
+	case kindFloat64:
+
+		b = strconv.FormatFloat(val.valueFloat, 'f', -1, 64)
+	case kindInt64:
+
+		b = strconv.FormatInt(val.valueInt, 10)
+	default:
+		b = "nan"
+	}
+	return b
+}

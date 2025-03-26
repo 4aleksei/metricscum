@@ -1,0 +1,44 @@
+package httpprof
+
+import (
+	"context"
+	"net/http"
+	_ "net/http/pprof" // подключаем пакет pprof
+	"sync"
+)
+
+const (
+	addrDefault = ":8085" // адрес сервера
+)
+
+type (
+	HTTPprof struct {
+		httpServerExitDone *sync.WaitGroup
+		srv                *http.Server
+	}
+)
+
+func NewHTTPprof() *HTTPprof {
+	return &HTTPprof{
+		httpServerExitDone: &sync.WaitGroup{},
+		srv:                &http.Server{Addr: addrDefault},
+	}
+}
+
+func (h *HTTPprof) Start(ctx context.Context) error {
+	go func() {
+		defer h.httpServerExitDone.Done()
+		if err := h.srv.ListenAndServe(); err != http.ErrServerClosed {
+			// unexpected error. port in use?
+		}
+	}()
+	return nil
+}
+
+func (h *HTTPprof) Stop(ctx context.Context) error {
+	if err := h.srv.Shutdown(context.TODO()); err != nil {
+		panic(err) // failure/timeout shutting down the server gracefully
+	}
+	h.httpServerExitDone.Wait()
+	return nil
+}
