@@ -37,13 +37,8 @@ var (
 type (
 	PoolHandler struct {
 		WorkerCount int
-
-		//	jobs        chan job.Job
-		//	results     chan job.Result
-		//	wg          sync.WaitGroup
-		cfg     *config.Config
-		clients []clientInstance
-		// cancels     []context.CancelFunc
+		cfg         *config.Config
+		clients     []clientInstance
 	}
 	functioExec func(context.Context, *sync.WaitGroup, *http.Client,
 		<-chan job.Job, chan<- job.Result, *config.Config)
@@ -51,7 +46,6 @@ type (
 		execFn functioExec
 		client *http.Client
 		cfg    *config.Config
-		// cancels context.CancelFunc
 	}
 )
 
@@ -171,38 +165,6 @@ func (p *PoolHandler) StartPool(ctx context.Context, jobs chan job.Job, results 
 		wg.Add(1)
 		go p.clients[i].execFn(ctx, wg, p.clients[i].client, jobs, results, p.cfg)
 	}
-}
-
-/*func (p *PoolHandler) GetResult(ctx context.Context) (job.Result, error) {
-	select {
-	case <-ctx.Done():
-		return job.Result{}, ctx.Err()
-	case res, ok := <-p.results:
-		if !ok {
-			return job.Result{}, ErrChanClosed
-		}
-		return res, nil
-	}
-}*/
-
-func (p *PoolHandler) Start(ctx context.Context) error {
-	/*	for i := 0; i < int(p.workerCount); i++ {
-		p.wg.Add(1)
-		ctxCancel, cancel := context.WithCancel(context.Background())
-		p.cancels = append(p.cancels, cancel)
-		go p.execFn(ctxCancel, newClient(), &p.wg, p.jobs, p.results, p.cfg)
-	}*/
-	return nil
-}
-
-func (p *PoolHandler) Stop(ctx context.Context) error {
-	/*	for i := 0; i < len(p.cancels); i++ {
-			p.cancels[i]()
-		}
-		p.wg.Wait()
-		close(p.jobs)
-		close(p.results)*/
-	return nil
 }
 
 func plainTxtFunc(ctx context.Context, client *http.Client, server, data string) error {

@@ -28,7 +28,7 @@ type HandlerStore struct {
 	l     *logger.Logger
 	jid   job.JobID
 }
-  
+
 func NewHandlerStore(store AgentMetricsStorage, pool *httpclientpool.PoolHandler, cfg *config.Config, l *logger.Logger) *HandlerStore {
 	return &HandlerStore{
 		store: store,
