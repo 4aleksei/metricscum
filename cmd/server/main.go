@@ -15,6 +15,8 @@ import (
 	"github.com/4aleksei/metricscum/internal/server/resources"
 	"github.com/4aleksei/metricscum/internal/server/service"
 	"go.uber.org/zap"
+
+	_ "net/http/pprof" // подключаем пакет pprof
 )
 
 const (
@@ -52,6 +54,8 @@ func run() error {
 	server := handlers.NewHandlers(metricsService, cfg, l)
 
 	server.Serve()
+
+	startHTTProfile()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
