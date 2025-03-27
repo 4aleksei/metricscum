@@ -20,7 +20,7 @@ func Example_mainPage() { //endpoint GET "/"
 
 	resp := w.Result()
 	body, _ := io.ReadAll(resp.Body)
-
+	resp.Body.Close()
 	fmt.Println(resp.StatusCode)
 	fmt.Println(resp.Header.Get("Content-Type"))
 	fmt.Println(string(body))
@@ -39,7 +39,7 @@ func Example_mainPageJSON() { //endpoint POST "/update/"
 
 	resp := w.Result()
 	body, _ := io.ReadAll(resp.Body)
-
+	resp.Body.Close()
 	fmt.Println(resp.StatusCode)
 	fmt.Println(resp.Header.Get("Content-Type"))
 	fmt.Println(string(body))
@@ -67,7 +67,7 @@ func Example_mainPostPagePlain() { //endpoint POST "/update/{type}/{name}/{value
 
 	resp := w.Result()
 	body, _ := io.ReadAll(resp.Body)
-
+	resp.Body.Close()
 	fmt.Println(resp.StatusCode)
 	fmt.Println(resp.Header.Get("Content-Type"))
 	fmt.Println(string(body))
