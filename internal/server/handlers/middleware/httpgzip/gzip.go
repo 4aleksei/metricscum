@@ -1,3 +1,4 @@
+// Модуль middleware для компресии декомпресии http запросов и ответов
 package httpgzip
 
 import (

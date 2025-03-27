@@ -1,3 +1,4 @@
+// Модуль структуры метрик
 package models
 
 import (
@@ -8,6 +9,7 @@ import (
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
 )
 
+// Структура метрик для экспорта/импорта в json
 type Metrics struct {
 	ID    string   `json:"id"`              // имя метрики
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
