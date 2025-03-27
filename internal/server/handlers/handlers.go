@@ -1,3 +1,4 @@
+// Модуль  обработчиков  http сервера
 package handlers
 
 import (
@@ -39,6 +40,7 @@ const (
 	applicationJSONContent string = "application/json"
 )
 
+// Конструктор  сервера  store - объект хранилища , cfg - структура конфига, l - логгер
 func NewHandlers(store *service.HandlerStore, cfg *config.Config, l *zap.Logger) *HandlersServer {
 	h := new(HandlersServer)
 	h.store = store
@@ -75,6 +77,7 @@ func (h *HandlersServer) withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(logFn)
 }
 
+// Запуск сервера в горутине
 func (h *HandlersServer) Serve() {
 	go func() {
 		if err := h.Srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
@@ -171,6 +174,7 @@ func (h *HandlersServer) checkHmacSha256(res http.ResponseWriter, req *http.Requ
 	return true
 }
 
+// едпоинт  POST /update/
 func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != applicationJSONContent {
 		http.Error(res, "Bad type!", http.StatusBadRequest)

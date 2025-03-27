@@ -1,3 +1,6 @@
+// Сервис сбора метрик и алертинга
+// Приложение server
+// Принимает метрики по заданным ендпоинтам и сохраняет в БД
 package main
 
 import (
@@ -15,8 +18,6 @@ import (
 	"github.com/4aleksei/metricscum/internal/server/resources"
 	"github.com/4aleksei/metricscum/internal/server/service"
 	"go.uber.org/zap"
-
-	_ "net/http/pprof" // подключаем пакет pprof
 )
 
 const (

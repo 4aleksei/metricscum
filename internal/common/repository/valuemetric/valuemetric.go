@@ -12,6 +12,8 @@ const (
 	kindBadEmpty valueKind = iota
 	kindInt64
 	kindFloat64
+
+	defaultNAN = "nan"
 )
 
 type ValueMetric struct {
@@ -180,8 +182,8 @@ func ConvertValueMetricToPlain(val ValueMetric) (a, b string) {
 		a = GetKindStr(val.kind)
 		b = strconv.FormatInt(val.valueInt, 10)
 	default:
-		a = "nan"
-		b = "nan"
+		a = defaultNAN
+		b = defaultNAN
 	}
 	return a, b
 }
@@ -195,7 +197,7 @@ func ConvertValueMetricToPlainOpt(val ValueMetric) (b string) {
 
 		b = strconv.FormatInt(val.valueInt, 10)
 	default:
-		b = "nan"
+		b = defaultNAN
 	}
 	return b
 }

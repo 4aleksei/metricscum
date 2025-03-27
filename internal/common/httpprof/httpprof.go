@@ -3,8 +3,9 @@ package httpprof
 import (
 	"context"
 	"net/http"
-	_ "net/http/pprof" // подключаем пакет pprof
+	_ "net/http/pprof" //nolint:gosec  //подключаем пакет pprof
 	"sync"
+	"time"
 )
 
 const (
@@ -21,7 +22,9 @@ type (
 func NewHTTPprof() *HTTPprof {
 	return &HTTPprof{
 		httpServerExitDone: &sync.WaitGroup{},
-		srv:                &http.Server{Addr: addrDefault},
+		srv: &http.Server{
+			Addr:              addrDefault,
+			ReadHeaderTimeout: 2 * time.Second},
 	}
 }
 

@@ -161,7 +161,7 @@ func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 }
 
 func (p *PoolHandler) StartPool(ctx context.Context, jobs chan job.Job, results chan job.Result, wg *sync.WaitGroup) {
-	for i := 0; i < int(p.WorkerCount); i++ {
+	for i := 0; i < p.WorkerCount; i++ {
 		wg.Add(1)
 		go p.clients[i].execFn(ctx, wg, p.clients[i].client, jobs, results, p.cfg)
 	}

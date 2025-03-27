@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"net/http"
-	_ "net/http/pprof" // подключаем пакет pprof
+	_ "net/http/pprof" //nolint:gosec // подключаем пакет pprof
+	"time"
 )
 
 const (
@@ -12,8 +13,11 @@ const (
 
 func startHTTProfile() {
 	go func() {
-		fmt.Println("Start Server")           // запускаем полезную нагрузку в фоне
-		err := http.ListenAndServe(addr, nil) // запускаем сервер
+		srv := &http.Server{
+			Addr:              addr,
+			ReadHeaderTimeout: 2 * time.Second,
+		}
+		err := srv.ListenAndServe() // запускаем сервер
 		if err != nil {
 			fmt.Println(err)
 		}

@@ -18,7 +18,6 @@ func BenchmarkConvertValueMetricToPlain(b *testing.B) {
 	b.Run("optimized", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_ = ConvertValueMetricToPlainOpt(val)
-
 		}
 	})
 }

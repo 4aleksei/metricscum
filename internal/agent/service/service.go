@@ -137,11 +137,8 @@ func (h *HandlerStore) sendMetricsRun(ctx context.Context, jobs chan job.Job, re
 
 func (h *HandlerStore) startSendMetricsRun(ctx context.Context, resmodelsTX []models.Metrics,
 	jobs chan job.Job, results chan job.Result, wg *sync.WaitGroup) {
-
 	go h.sendMetricsRun(ctx, jobs, resmodelsTX)
-
 	h.pool.StartPool(ctx, jobs, results, wg)
-
 }
 
 func (h *HandlerStore) SendMetrics(ctx context.Context) error {
