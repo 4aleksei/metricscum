@@ -1,4 +1,4 @@
-// Регистрация и запуск основных модулей программы agent
+// Package app
 package app
 
 import (
@@ -39,7 +39,7 @@ func registerHTTPprof(hh *httpprof.HTTPprof, lc fx.Lifecycle) {
 	lc.Append(utils.ToHook(hh))
 }
 
-// Функция запуска главного цикла программы
+// SetupFX - application constructor
 func SetupFX() *fx.App {
 	app := fx.New(
 		fx.Supply(logger.Config{Level: "debug"}),

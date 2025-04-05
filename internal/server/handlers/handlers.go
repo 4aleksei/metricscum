@@ -1,4 +1,4 @@
-// Модуль  обработчиков  http сервера
+// Package handlers - servers endpoint realisation
 package handlers
 
 import (
@@ -40,7 +40,10 @@ const (
 	applicationJSONContent string = "application/json"
 )
 
-// Конструктор  сервера  store - объект хранилища , cfg - структура конфига, l - логгер
+// NewHandlers - server constructor
+// store : store object
+// cfg : config
+// l :  logger realisation
 func NewHandlers(store *service.HandlerStore, cfg *config.Config, l *zap.Logger) *HandlersServer {
 	h := new(HandlersServer)
 	h.store = store
@@ -77,7 +80,7 @@ func (h *HandlersServer) withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(logFn)
 }
 
-// Запуск сервера в горутине
+// Serve - start server in go-routine
 func (h *HandlersServer) Serve() {
 	go func() {
 		if err := h.Srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
