@@ -1,3 +1,6 @@
+// Metrics Alerting Service
+// Application server
+// Receive metrics on endpoint and save it at BD
 package main
 
 import (

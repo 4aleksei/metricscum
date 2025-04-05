@@ -1,3 +1,4 @@
+// Модуль middleware для логирования  http запросов и ответов
 package httplogs
 
 import (

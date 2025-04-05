@@ -1,3 +1,4 @@
+// Package handlers - servers endpoint realisation
 package handlers
 
 import (
@@ -39,6 +40,10 @@ const (
 	applicationJSONContent string = "application/json"
 )
 
+// NewHandlers - server constructor
+// store : store object
+// cfg : config
+// l :  logger realisation
 func NewHandlers(store *service.HandlerStore, cfg *config.Config, l *zap.Logger) *HandlersServer {
 	h := new(HandlersServer)
 	h.store = store
@@ -75,6 +80,7 @@ func (h *HandlersServer) withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(logFn)
 }
 
+// Serve - start server in go-routine
 func (h *HandlersServer) Serve() {
 	go func() {
 		if err := h.Srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
@@ -133,6 +139,8 @@ func (h *HandlersServer) newRouter() http.Handler {
 
 	mux.Use(middleware.Recoverer)
 
+	mux.Mount("/debug", middleware.Profiler())
+
 	mux.Post("/update/", h.mainPageJSON)
 	mux.Post("/updates/", h.mainPageJSONs)
 	mux.Post("/update/{type}/{name}/{value}", h.mainPostPagePlain)
@@ -171,6 +179,7 @@ func (h *HandlersServer) checkHmacSha256(res http.ResponseWriter, req *http.Requ
 	return true
 }
 
+// едпоинт  POST /update/
 func (h *HandlersServer) mainPageJSON(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != applicationJSONContent {
 		http.Error(res, "Bad type!", http.StatusBadRequest)
