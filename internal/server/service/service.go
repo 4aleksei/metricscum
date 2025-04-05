@@ -1,3 +1,4 @@
+// Package service - Metrics server service
 package service
 
 import (

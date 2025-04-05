@@ -1,3 +1,4 @@
+// Package httpclientpool - Integration tests
 package httpclientpool
 
 import (
@@ -54,6 +55,9 @@ func NewHandler(cfg *config.Config) *PoolHandler {
 	p.WorkerCount = int(cfg.RateLimit)
 	p.clients = make([]clientInstance, p.WorkerCount)
 	p.cfg = cfg
+	for i := 0; i < p.WorkerCount; i++ {
+		p.clients[i] = *newClientInstance(cfg)
+	}
 	for i := 0; i < p.WorkerCount; i++ {
 		p.clients[i] = *newClientInstance(cfg)
 	}

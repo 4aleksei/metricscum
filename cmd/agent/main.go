@@ -1,6 +1,6 @@
-// Сервис сбора метрик и алертинга
-// Приложение agent
-// Собирает метрики и отправляет на server
+// Metrics Alerting Service
+// Application agent
+// Gathering and sending metrics
 package main
 
 import (

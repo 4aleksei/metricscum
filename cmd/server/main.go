@@ -1,6 +1,6 @@
-// Сервис сбора метрик и алертинга
-// Приложение server
-// Принимает метрики по заданным ендпоинтам и сохраняет в БД
+// Metrics Alerting Service
+// Application server
+// Receive metrics on endpoint and save it at BD
 package main
 
 import (
@@ -55,8 +55,6 @@ func run() error {
 	server := handlers.NewHandlers(metricsService, cfg, l)
 
 	server.Serve()
-
-	startHTTProfile()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

@@ -136,6 +136,8 @@ func (h *HandlersServer) newRouter() http.Handler {
 
 	mux.Use(middleware.Recoverer)
 
+	mux.Mount("/debug", middleware.Profiler())
+
 	mux.Post("/update/", h.mainPageJSON)
 	mux.Post("/updates/", h.mainPageJSONs)
 	mux.Post("/update/{type}/{name}/{value}", h.mainPostPagePlain)
