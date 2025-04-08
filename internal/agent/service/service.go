@@ -182,6 +182,8 @@ func (h *HandlerStore) SendMetrics(ctx context.Context) error {
 		}
 	}
 
+
+
 	if errRes != nil {
 		h.l.L.Debug("Error results:", zap.Error(errRes))
 		h.rollBackMetrics(ctx, resmodelsTX)
