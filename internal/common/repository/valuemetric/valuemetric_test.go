@@ -232,3 +232,138 @@ func Test_GetTypeStr(t *testing.T) {
 		})
 	}
 }
+
+func Test_GetKind(t *testing.T) {
+	tests := []struct {
+		name string
+		val  ValueMetric
+		want int
+	}{
+		{name: "Test kindInt64", val: ValueMetric{kind: kindInt64, valueInt: 44, valueFloat: 0}, want: 1},
+		{name: "Test kindFloat64", val: ValueMetric{kind: kindFloat64, valueInt: 0, valueFloat: 44.5}, want: 2},
+		{name: "Test kindEmpty", val: ValueMetric{kind: kindBadEmpty, valueInt: 0, valueFloat: 0}, want: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.val.GetKind()
+			if got != tt.want {
+				t.Errorf("GetKind  valueMetric=%v, got = %v, want %v ", tt.val, got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_GetKindStr(t *testing.T) {
+	tests := []struct {
+		name  string
+		value valueKind
+		want  string
+	}{
+		{name: "Test kindInt64", value: 1, want: "counter"},
+		{name: "Test kindFloat64", value: 2, want: "gauge"},
+		{name: "Test kindEmpty", value: 0, want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetKindStr(tt.value)
+			if got != tt.want {
+				t.Errorf("GetKindStr = %v, want %v ", tt.value, tt.want)
+			}
+		})
+	}
+}
+
+func Test_GetKindVal(t *testing.T) {
+	tests := []struct {
+		name string
+		val  string
+
+		want    valueKind
+		wantErr error
+	}{
+		{name: "Test kindInt64", val: "counter", want: 1, wantErr: nil},
+		{name: "Test kindFloat64", val: "gauge", want: 2, wantErr: nil},
+		{name: "Test kindEmpty", val: "", want: 0, wantErr: ErrBadTypeValue},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotErr := GetKind(tt.val)
+			if gotErr != nil {
+
+				if !errors.Is(gotErr, tt.wantErr) {
+					t.Errorf("GetKind  valueMetric=%v, gotErr = %v, wantErr %v ", tt.val, gotErr, tt.wantErr)
+				}
+
+			} else {
+
+				if got != tt.want {
+					t.Errorf("GetKind  valueMetric=%v, got = %v, want %v ", tt.val, got, tt.want)
+				}
+			}
+
+		})
+	}
+}
+
+func Test_ValueInt(t *testing.T) {
+	val := ValueMetric{kind: kindInt64, valueInt: 44, valueFloat: 0}
+	val2 := ValueMetric{kind: kindFloat64, valueInt: 0, valueFloat: 44.5}
+	tests := []struct {
+		name string
+		val  ValueMetric
+		want *int64
+	}{
+		{name: "Test kindInt64", val: val, want: &val.valueInt},
+		{name: "Test kindFloat64", val: val2, want: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.val.ValueInt()
+			if got != nil {
+				if *got != *tt.want {
+					t.Errorf("ValueInt  valueMetric=%v, got = %v, want %v ", tt.val, *got, *tt.want)
+				}
+
+			} else {
+
+				if got != tt.want {
+					t.Errorf("ValueInt  valueMetric=%v, got = %v, want %v ", tt.val, got, tt.want)
+				}
+			}
+		})
+	}
+}
+
+func Test_ValueFloat(t *testing.T) {
+	val := ValueMetric{kind: kindInt64, valueInt: 44, valueFloat: 0}
+	val2 := ValueMetric{kind: kindFloat64, valueInt: 0, valueFloat: 44.5}
+	tests := []struct {
+		name string
+		val  ValueMetric
+		want *float64
+	}{
+		{name: "Test kindFloat64", val: val2, want: &val2.valueFloat},
+		{name: "Test kindInt64", val: val, want: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.val.ValueFloat()
+			if got != nil {
+
+				if *got != *tt.want {
+					t.Errorf("ValueFloat  valueMetric=%v, got = %v, want %v ", tt.val, *got, *tt.want)
+				}
+
+			} else {
+				if got != tt.want {
+					t.Errorf("ValueFloat  valueMetric=%v, got = %v, want %v ", tt.val, got, tt.want)
+				}
+			}
+		})
+	}
+}

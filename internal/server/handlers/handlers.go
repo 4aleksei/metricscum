@@ -391,6 +391,14 @@ func (h *HandlersServer) mainPingDB(res http.ResponseWriter, req *http.Request) 
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	switch req.Header.Get("Accept") {
+	case textHTMLContent:
+		res.Header().Add("Content-Type", textHTMLContent)
+	case applicationJSONContent:
+		res.Header().Add("Content-Type", applicationJSONContent)
+	default:
+		res.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	}
 	res.WriteHeader(http.StatusOK)
 }
 

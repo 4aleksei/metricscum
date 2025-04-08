@@ -194,3 +194,29 @@ func Test_ReadAll(t *testing.T) {
 		})
 	}
 }
+
+func Test_ReadAllClearCounters(t *testing.T) {
+	db := &DBStorage{db: nil,
+		l: nil}
+
+	tests := []struct {
+		name    string
+		wantErr error
+	}{
+		{name: "Test ReadAllClearCounters", wantErr: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotErr := db.ReadAllClearCounters(context.Background(), func(name string, val valuemetric.ValueMetric) error {
+				return nil
+			})
+
+			if gotErr != nil {
+				if gotErr != tt.wantErr {
+					t.Errorf("Error ReadAllClearCounters Ret Error = %v  , wantErr = %v", gotErr, tt.wantErr)
+				}
+			}
+		})
+	}
+}

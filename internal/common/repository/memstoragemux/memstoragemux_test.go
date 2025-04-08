@@ -126,3 +126,76 @@ func Test_AddMulti(t *testing.T) {
 		})
 	}
 }
+
+func Test_ReadAllClearCounters(t *testing.T) {
+	n := NewStoreMux()
+	vF := valuemetric.ConvertToFloatValueMetric(55.55)
+	vI := valuemetric.ConvertToIntValueMetric(55)
+	nameOfTest1 := "Test1"
+	nameOfTest2 := "Test2"
+	n.Add(context.Background(), nameOfTest1, *vI)
+	n.Add(context.Background(), nameOfTest2, *vF)
+
+	tests := []struct {
+		name    string
+		valName string
+		wantVal valuemetric.ValueMetric
+		wantErr error
+	}{
+		{name: "Test Get Int", valName: nameOfTest1, wantVal: *vI, wantErr: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotErr := n.ReadAllClearCounters(context.Background(), func(name string, val valuemetric.ValueMetric) error {
+
+				return nil
+			})
+			if gotErr != nil {
+				if !errors.Is(gotErr, tt.wantErr) {
+					t.Errorf("ReadAllClearCounter = %v, want_err %v ", gotErr, tt.wantErr)
+				}
+			}
+			got, _ := n.Get(context.Background(), nameOfTest1)
+			if got.ValueInt() == nil {
+				t.Errorf("ReadAllClearCounter = %v, want_err %v ", gotErr, tt.wantErr)
+			}
+
+			if *got.ValueInt() != 0 {
+				t.Errorf("ReadAllClearCounter = %v, want_err %v ", gotErr, tt.wantErr)
+			}
+
+		})
+	}
+}
+
+func Test_ReadAll(t *testing.T) {
+	n := NewStoreMux()
+	vF := valuemetric.ConvertToFloatValueMetric(55.55)
+	vI := valuemetric.ConvertToIntValueMetric(55)
+	nameOfTest1 := "Test1"
+	nameOfTest2 := "Test2"
+	n.Add(context.Background(), nameOfTest1, *vI)
+	n.Add(context.Background(), nameOfTest2, *vF)
+
+	tests := []struct {
+		name    string
+		valName string
+		wantVal valuemetric.ValueMetric
+		wantErr error
+	}{
+		{name: "Test Get Int", valName: nameOfTest1, wantVal: *vI, wantErr: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotErr := n.ReadAll(context.Background(), func(name string, val valuemetric.ValueMetric) error {
+
+				return nil
+			})
+			if gotErr != nil {
+				if !errors.Is(gotErr, tt.wantErr) {
+					t.Errorf("ReadlAll = %v, want_err %v ", gotErr, tt.wantErr)
+				}
+			}
+		})
+	}
+}
