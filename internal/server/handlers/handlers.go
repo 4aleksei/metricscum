@@ -1,4 +1,4 @@
-// Package handlers - servers endpoint realisation
+// Package handlers - servers endpoint realization
 package handlers
 
 import (
@@ -43,7 +43,7 @@ const (
 // NewHandlers - server constructor
 // store : store object
 // cfg : config
-// l :  logger realisation
+// l :  logger realization
 func NewHandlers(store *service.HandlerStore, cfg *config.Config, l *zap.Logger) *HandlersServer {
 	h := new(HandlersServer)
 	h.store = store
