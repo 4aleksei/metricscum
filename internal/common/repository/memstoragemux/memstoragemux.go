@@ -1,3 +1,4 @@
+// Package memstoragemux
 package memstoragemux
 
 import (

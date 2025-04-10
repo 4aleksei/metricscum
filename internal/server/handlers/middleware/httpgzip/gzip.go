@@ -1,3 +1,4 @@
+// Package httpgzip - middleware for compress/decompress http request/response
 package httpgzip
 
 import (

@@ -1,3 +1,6 @@
+// Metrics Alerting Service
+// Application agent
+// Gathering and sending metrics
 package main
 
 import (

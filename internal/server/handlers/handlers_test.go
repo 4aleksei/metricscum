@@ -85,6 +85,7 @@ func Test_handlers_mainHTTPPlain(t *testing.T) {
 		{name: "Test No9", req: request{method: http.MethodPost, url: "/update/counter/test4/5454.3434"}, want: want{statusCode: http.StatusBadRequest, contentType: "text/plain; charset=utf-8"}},
 		{name: "Test No10", req: request{method: http.MethodPost, url: "/update/counter/testreal/10"}, want: want{statusCode: http.StatusOK, contentType: "text/plain; charset=utf-8"}},
 		{name: "Test No11", req: request{method: http.MethodGet, url: "/value/counter/testreal"}, want: want{statusCode: http.StatusOK, contentType: "text/plain; charset=utf-8", body: "10"}},
+		{name: "Test No12", req: request{method: http.MethodGet, url: "/ping"}, want: want{statusCode: http.StatusOK, contentType: "text/plain; charset=utf-8", body: ""}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -1,3 +1,4 @@
+// Package app
 package app
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/4aleksei/metricscum/internal/agent/handlers"
 	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool"
 	"github.com/4aleksei/metricscum/internal/agent/service"
+	"github.com/4aleksei/metricscum/internal/common/httpprof"
 	"github.com/4aleksei/metricscum/internal/common/logger"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstoragemux"
 	"github.com/4aleksei/metricscum/internal/common/utils"
@@ -33,6 +35,11 @@ func registerRunnersSender(cc *handlers.App, lc fx.Lifecycle) {
 	lc.Append(utils.ToHook(cc))
 }
 
+func registerHTTPprof(hh *httpprof.HTTPprof, lc fx.Lifecycle) {
+	lc.Append(utils.ToHook(hh))
+}
+
+// SetupFX - application constructor
 func SetupFX() *fx.App {
 	app := fx.New(
 		fx.Supply(logger.Config{Level: "debug"}),
@@ -40,6 +47,7 @@ func SetupFX() *fx.App {
 		fx.Provide(
 			logger.NewLogger,
 			config.GetConfig,
+			httpprof.NewHTTPprof,
 			fx.Annotate(memstoragemux.NewStoreMux,
 				fx.As(new(service.AgentMetricsStorage))),
 			service.NewHandlerStore,
@@ -54,6 +62,7 @@ func SetupFX() *fx.App {
 		}),
 		fx.Invoke(
 			registerSetLoggerLevel,
+			registerHTTPprof,
 			registerRunnersSender,
 			registerRunnersGather,
 			registerRunnersGatherps,
