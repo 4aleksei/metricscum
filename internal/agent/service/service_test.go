@@ -3,8 +3,15 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/4aleksei/metricscum/internal/agent/config"
+	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool"
+	"github.com/4aleksei/metricscum/internal/common/logger"
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
@@ -123,4 +130,45 @@ func Test_SetGaugeMulti(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_SendMetrics(t *testing.T) {
+	cfg := &config.Config{
+		Address:      "127.0.0.1:8081",
+		RateLimit:    1,
+		ContentJSON:  true,
+		ContentBatch: 1,
+	}
+
+	l, err := net.Listen("tcp", cfg.Address)
+	if err != nil {
+		log.Fatal(err)
+	}
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+
+		_, _ = rw.Write([]byte(`OK`))
+	}))
+	server.Listener.Close()
+	server.Listener = l
+	server.Start()
+	defer server.Close()
+
+	stor := memstorage.NewStore()
+
+	pool := httpclientpool.NewHandler(cfg)
+	lo := logger.NewLogger(logger.Config{Level: "debug"})
+	serV := NewHandlerStore(stor, pool, cfg, lo)
+
+	vF := valuemetric.ConvertToFloatValueMetric(55.55)
+	vI := valuemetric.ConvertToIntValueMetric(55)
+	nameOfTest1 := "Test1"
+	nameOfTest2 := "Test2"
+	_, _ = stor.Add(context.Background(), nameOfTest1, *vI)
+	_, _ = stor.Add(context.Background(), nameOfTest2, *vF)
+
+	t.Run("TEST SendMetrics", func(t *testing.T) {
+		err := serV.SendMetrics(context.Background())
+		assert.Nil(t, err)
+	})
 }
