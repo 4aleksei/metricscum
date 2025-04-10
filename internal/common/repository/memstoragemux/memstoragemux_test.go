@@ -69,8 +69,8 @@ func Test_Get(t *testing.T) {
 	vI := valuemetric.ConvertToIntValueMetric(55)
 	nameOfTest1 := "Test1"
 	nameOfTest2 := "Test2"
-	n.Add(context.Background(), nameOfTest1, *vI)
-	n.Add(context.Background(), nameOfTest2, *vF)
+	_, _ = n.Add(context.Background(), nameOfTest1, *vI)
+	_, _ = n.Add(context.Background(), nameOfTest2, *vF)
 
 	tests := []struct {
 		name    string
@@ -133,8 +133,8 @@ func Test_ReadAllClearCounters(t *testing.T) {
 	vI := valuemetric.ConvertToIntValueMetric(55)
 	nameOfTest1 := "Test1"
 	nameOfTest2 := "Test2"
-	n.Add(context.Background(), nameOfTest1, *vI)
-	n.Add(context.Background(), nameOfTest2, *vF)
+	_, _ = n.Add(context.Background(), nameOfTest1, *vI)
+	_, _ = n.Add(context.Background(), nameOfTest2, *vF)
 
 	tests := []struct {
 		name    string
@@ -147,7 +147,6 @@ func Test_ReadAllClearCounters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotErr := n.ReadAllClearCounters(context.Background(), func(name string, val valuemetric.ValueMetric) error {
-
 				return nil
 			})
 			if gotErr != nil {
@@ -163,7 +162,6 @@ func Test_ReadAllClearCounters(t *testing.T) {
 			if *got.ValueInt() != 0 {
 				t.Errorf("ReadAllClearCounter = %v, want_err %v ", gotErr, tt.wantErr)
 			}
-
 		})
 	}
 }
@@ -174,8 +172,8 @@ func Test_ReadAll(t *testing.T) {
 	vI := valuemetric.ConvertToIntValueMetric(55)
 	nameOfTest1 := "Test1"
 	nameOfTest2 := "Test2"
-	n.Add(context.Background(), nameOfTest1, *vI)
-	n.Add(context.Background(), nameOfTest2, *vF)
+	_, _ = n.Add(context.Background(), nameOfTest1, *vI)
+	_, _ = n.Add(context.Background(), nameOfTest2, *vF)
 
 	tests := []struct {
 		name    string
@@ -188,7 +186,6 @@ func Test_ReadAll(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotErr := n.ReadAll(context.Background(), func(name string, val valuemetric.ValueMetric) error {
-
 				return nil
 			})
 			if gotErr != nil {

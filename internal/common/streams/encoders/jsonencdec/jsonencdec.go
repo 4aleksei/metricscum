@@ -1,3 +1,4 @@
+// Package jsonencdec
 package jsonencdec
 
 import (

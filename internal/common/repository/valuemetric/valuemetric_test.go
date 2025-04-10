@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func BenchmarkConvertValueMetricToPlain(b *testing.B) {
@@ -292,18 +294,14 @@ func Test_GetKindVal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, gotErr := GetKind(tt.val)
 			if gotErr != nil {
-
 				if !errors.Is(gotErr, tt.wantErr) {
 					t.Errorf("GetKind  valueMetric=%v, gotErr = %v, wantErr %v ", tt.val, gotErr, tt.wantErr)
 				}
-
 			} else {
-
 				if got != tt.want {
 					t.Errorf("GetKind  valueMetric=%v, got = %v, want %v ", tt.val, got, tt.want)
 				}
 			}
-
 		})
 	}
 }
@@ -327,9 +325,7 @@ func Test_ValueInt(t *testing.T) {
 				if *got != *tt.want {
 					t.Errorf("ValueInt  valueMetric=%v, got = %v, want %v ", tt.val, *got, *tt.want)
 				}
-
 			} else {
-
 				if got != tt.want {
 					t.Errorf("ValueInt  valueMetric=%v, got = %v, want %v ", tt.val, got, tt.want)
 				}
@@ -354,16 +350,78 @@ func Test_ValueFloat(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.val.ValueFloat()
 			if got != nil {
-
 				if *got != *tt.want {
 					t.Errorf("ValueFloat  valueMetric=%v, got = %v, want %v ", tt.val, *got, *tt.want)
 				}
-
 			} else {
 				if got != tt.want {
 					t.Errorf("ValueFloat  valueMetric=%v, got = %v, want %v ", tt.val, got, tt.want)
 				}
 			}
+		})
+	}
+}
+
+func Test_GetKindInt(t *testing.T) {
+	tests := []struct {
+		name    string
+		val     int
+		want    valueKind
+		wantErr error
+	}{
+		{name: "Test kindInt64", val: 1, want: 1, wantErr: nil},
+		{name: "Test kindFloat64", val: 2, want: 2, wantErr: nil},
+		{name: "Test kindEmpty", val: 0, want: 0, wantErr: ErrBadTypeValue},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotErr := GetKindInt(tt.val)
+			if gotErr != nil {
+				if !errors.Is(gotErr, tt.wantErr) {
+					t.Errorf("GetKindInt  valueMetric=%v, gotErr = %v, wantErr %v ", tt.val, gotErr, tt.wantErr)
+				}
+			} else {
+				if got != tt.want {
+					t.Errorf("GetKindInt  valueMetric=%v, got = %v, want %v ", tt.val, got, tt.want)
+				}
+			}
+		})
+	}
+}
+
+func Test_DoUpdate(t *testing.T) {
+	tests := []struct {
+		name string
+		val  ValueMetric
+		want ValueMetric
+	}{
+		{name: "Test DoUpdate INt64", val: ValueMetric{kind: kindInt64, valueInt: 44, valueFloat: 0}, want: ValueMetric{kind: kindInt64, valueInt: 88, valueFloat: 0}},
+		{name: "Test DoUpdate Flaot64", val: ValueMetric{kind: kindFloat64, valueInt: 0, valueFloat: 44.44}, want: ValueMetric{kind: kindFloat64, valueInt: 0, valueFloat: 44.44}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.val.DoUpdate(tt.val)
+			assert.Equal(t, tt.val, tt.want)
+		})
+	}
+}
+
+func Test_DoRead(t *testing.T) {
+	tests := []struct {
+		name string
+		val  ValueMetric
+		want ValueMetric
+	}{
+		{name: "Test DoUpdate INt64", val: ValueMetric{kind: kindInt64, valueInt: 44, valueFloat: 0}, want: ValueMetric{kind: kindInt64, valueInt: 0, valueFloat: 0}},
+		{name: "Test DoUpdate Flaot64", val: ValueMetric{kind: kindFloat64, valueInt: 0, valueFloat: 44.44}, want: ValueMetric{kind: kindFloat64, valueInt: 0, valueFloat: 44.44}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.val.DoRead()
+			assert.Equal(t, got, tt.want)
 		})
 	}
 }

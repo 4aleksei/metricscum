@@ -45,7 +45,6 @@ func checkModels(testModel Metrics, tt Metrics) bool {
 }
 
 func Test_ConvertMetricToModel(t *testing.T) {
-	//func (valModels *Metrics) ConvertMetricToModel(name string, valMetrics valuemetric.ValueMetric)
 	valInt := valuemetric.ConvertToIntValueMetric(44)
 	valFloat := valuemetric.ConvertToFloatValueMetric(44.66)
 
@@ -71,7 +70,6 @@ func Test_ConvertMetricToModel(t *testing.T) {
 }
 
 func Test_ConvertMetricToValue(t *testing.T) {
-	//func (valModels *Metrics) ConvertMetricToValue() string
 	valInt := valuemetric.ConvertToIntValueMetric(44)
 	valFloat := valuemetric.ConvertToFloatValueMetric(44.66)
 
@@ -116,14 +114,11 @@ func Test_JSONDecode(t *testing.T) {
 				if tt.wantErr == nil {
 					t.Errorf("JSONDecode = %v, gotErr = %v wantErr %v  ", tt.value, gotErr, tt.wantErr)
 				}
-
 			} else {
-
 				assert.Equal(t, val, tt.want)
 			}
 		})
 	}
-
 }
 
 func Test_JSONEncodeBytes(t *testing.T) {
@@ -149,13 +144,11 @@ func Test_JSONEncodeBytes(t *testing.T) {
 				if tt.wantErr == nil {
 					t.Errorf("JSONEncodeBytes = %v, gotErr = %v wantErr %v  ", tt.value, gotErr, tt.wantErr)
 				}
-
 			} else {
 				assert.JSONEq(t, tt.want, body.String())
 			}
 		})
 	}
-
 }
 
 func Test_JSONDecodeSlice(t *testing.T) {
@@ -182,14 +175,11 @@ func Test_JSONDecodeSlice(t *testing.T) {
 				if tt.wantErr == nil {
 					t.Errorf("JSONDecode = %v, gotErr = %v wantErr %v  ", tt.value, gotErr, tt.wantErr)
 				}
-
 			} else {
-
 				assert.Equal(t, got, tt.want)
 			}
 		})
 	}
-
 }
 
 func Test_JSONEncodeBytesSlice(t *testing.T) {
@@ -217,11 +207,9 @@ func Test_JSONEncodeBytesSlice(t *testing.T) {
 				if tt.wantErr == nil {
 					t.Errorf("JSONEncodeBytes = %v, gotErr = %v wantErr %v  ", tt.value, gotErr, tt.wantErr)
 				}
-
 			} else {
 				assert.JSONEq(t, tt.want, body.String())
 			}
 		})
 	}
-
 }

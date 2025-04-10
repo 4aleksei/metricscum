@@ -15,6 +15,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_NewPool(t *testing.T) {
+	cfg := &config.Config{
+		Address:     "127.0.0.1:8081",
+		RateLimit:   1,
+		ContentJSON: false,
+	}
+
+	t.Run("Test NewPool", func(t *testing.T) {
+		p := NewHandler(cfg)
+		assert.NotNil(t, p)
+	})
+}
+
 func Test_Plain(t *testing.T) {
 	cfg := &config.Config{
 		Address:     "127.0.0.1:8081",
