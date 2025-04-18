@@ -1,3 +1,4 @@
+// Package valuemetric
 package valuemetric
 
 import (
@@ -12,6 +13,8 @@ const (
 	kindBadEmpty valueKind = iota
 	kindInt64
 	kindFloat64
+
+	defaultNAN = "nan"
 )
 
 type ValueMetric struct {
@@ -180,8 +183,22 @@ func ConvertValueMetricToPlain(val ValueMetric) (a, b string) {
 		a = GetKindStr(val.kind)
 		b = strconv.FormatInt(val.valueInt, 10)
 	default:
-		a = "nan"
-		b = "nan"
+		a = defaultNAN
+		b = defaultNAN
 	}
 	return a, b
+}
+
+func ConvertValueMetricToPlainOpt(val ValueMetric) (b string) {
+	switch val.kind {
+	case kindFloat64:
+
+		b = strconv.FormatFloat(val.valueFloat, 'f', -1, 64)
+	case kindInt64:
+
+		b = strconv.FormatInt(val.valueInt, 10)
+	default:
+		b = defaultNAN
+	}
+	return b
 }

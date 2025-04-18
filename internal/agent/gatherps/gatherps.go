@@ -60,14 +60,14 @@ func (app *AppGatherMem) mainGather(ctx context.Context) {
 
 			v, _ := mem.VirtualMemory()
 
-			app.serv.SetGauge(ctx, "TotalMemory", float64(v.Total))
-			app.serv.SetGauge(ctx, "FreeMemory", float64(v.Free))
+			_, _ = app.serv.SetGauge(ctx, "TotalMemory", float64(v.Total))
+			_, _ = app.serv.SetGauge(ctx, "FreeMemory", float64(v.Free))
 			c, _ := cpu.Percent(0, true)
 			var name []string
 			for i := range c {
 				name = append(name, "CPUutilization"+strconv.Itoa(i+1))
 			}
-			app.serv.SetGaugeMulti(ctx, name, c)
+			_, _ = app.serv.SetGaugeMulti(ctx, name, c)
 		}
 	}
 }

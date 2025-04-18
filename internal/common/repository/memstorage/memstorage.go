@@ -1,3 +1,4 @@
+// Package memstorage
 package memstorage
 
 import (

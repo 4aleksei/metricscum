@@ -1,3 +1,4 @@
+// Package zipdata
 package zipdata
 
 import (

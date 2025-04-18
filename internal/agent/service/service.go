@@ -1,3 +1,4 @@
+// Package service - services for agent
 package service
 
 import (
@@ -28,7 +29,7 @@ type HandlerStore struct {
 	l     *logger.Logger
 	jid   job.JobID
 }
-  
+
 func NewHandlerStore(store AgentMetricsStorage, pool *httpclientpool.PoolHandler, cfg *config.Config, l *logger.Logger) *HandlerStore {
 	return &HandlerStore{
 		store: store,
@@ -38,24 +39,24 @@ func NewHandlerStore(store AgentMetricsStorage, pool *httpclientpool.PoolHandler
 	}
 }
 
-func (h *HandlerStore) SetGauge(ctx context.Context, name string, val float64) {
+func (h *HandlerStore) SetGauge(ctx context.Context, name string, val float64) (valuemetric.ValueMetric, error) {
 	valMetric := valuemetric.ConvertToFloatValueMetric(val)
-	_, _ = h.store.Add(ctx, name, *valMetric)
+	return h.store.Add(ctx, name, *valMetric)
 }
 
-func (h *HandlerStore) SetGaugeMulti(ctx context.Context, name []string, valArr []float64) {
+func (h *HandlerStore) SetGaugeMulti(ctx context.Context, name []string, valArr []float64) ([]models.Metrics, error) {
 	var valMetric []models.Metrics
 	for i, val := range valArr {
 		var v models.Metrics
 		v.ConvertMetricToModel(name[i], *valuemetric.ConvertToFloatValueMetric(val))
 		valMetric = append(valMetric, v)
 	}
-	_, _ = h.store.AddMulti(ctx, valMetric)
+	return h.store.AddMulti(ctx, valMetric)
 }
 
-func (h *HandlerStore) SetCounter(ctx context.Context, name string, val int64) {
+func (h *HandlerStore) SetCounter(ctx context.Context, name string, val int64) (valuemetric.ValueMetric, error) {
 	valMetric := valuemetric.ConvertToIntValueMetric(val)
-	_, _ = h.store.Add(ctx, name, *valMetric)
+	return h.store.Add(ctx, name, *valMetric)
 }
 
 func (h *HandlerStore) RangeMetrics(ctx context.Context, prog func(context.Context, string) error) error {
@@ -137,11 +138,8 @@ func (h *HandlerStore) sendMetricsRun(ctx context.Context, jobs chan job.Job, re
 
 func (h *HandlerStore) startSendMetricsRun(ctx context.Context, resmodelsTX []models.Metrics,
 	jobs chan job.Job, results chan job.Result, wg *sync.WaitGroup) {
-
 	go h.sendMetricsRun(ctx, jobs, resmodelsTX)
-
 	h.pool.StartPool(ctx, jobs, results, wg)
-
 }
 
 func (h *HandlerStore) SendMetrics(ctx context.Context) error {
@@ -183,7 +181,6 @@ func (h *HandlerStore) SendMetrics(ctx context.Context) error {
 			}
 		}
 	}
-
 	if errRes != nil {
 		h.l.L.Debug("Error results:", zap.Error(errRes))
 		h.rollBackMetrics(ctx, resmodelsTX)

@@ -63,5 +63,10 @@ tasks:
       desc: Run tests
       cmds:
         - |
-          cd ./internal/server/handlers
-          go test -cover
+          go test ./... -cover
+  cover:
+      desc: Run rest with calc cover
+      cmds:
+        - |
+          go test -v -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out

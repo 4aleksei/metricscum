@@ -1,3 +1,4 @@
+// Package httpclientpool - Integration tests
 package httpclientpool
 
 import (
@@ -37,13 +38,8 @@ var (
 type (
 	PoolHandler struct {
 		WorkerCount int
-
-		//	jobs        chan job.Job
-		//	results     chan job.Result
-		//	wg          sync.WaitGroup
-		cfg     *config.Config
-		clients []clientInstance
-		// cancels     []context.CancelFunc
+		cfg         *config.Config
+		clients     []clientInstance
 	}
 	functioExec func(context.Context, *sync.WaitGroup, *http.Client,
 		<-chan job.Job, chan<- job.Result, *config.Config)
@@ -51,7 +47,6 @@ type (
 		execFn functioExec
 		client *http.Client
 		cfg    *config.Config
-		// cancels context.CancelFunc
 	}
 )
 
@@ -60,6 +55,9 @@ func NewHandler(cfg *config.Config) *PoolHandler {
 	p.WorkerCount = int(cfg.RateLimit)
 	p.clients = make([]clientInstance, p.WorkerCount)
 	p.cfg = cfg
+	for i := 0; i < p.WorkerCount; i++ {
+		p.clients[i] = *newClientInstance(cfg)
+	}
 	for i := 0; i < p.WorkerCount; i++ {
 		p.clients[i] = *newClientInstance(cfg)
 	}
@@ -167,42 +165,10 @@ func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 }
 
 func (p *PoolHandler) StartPool(ctx context.Context, jobs chan job.Job, results chan job.Result, wg *sync.WaitGroup) {
-	for i := 0; i < int(p.WorkerCount); i++ {
+	for i := 0; i < p.WorkerCount; i++ {
 		wg.Add(1)
 		go p.clients[i].execFn(ctx, wg, p.clients[i].client, jobs, results, p.cfg)
 	}
-}
-
-/*func (p *PoolHandler) GetResult(ctx context.Context) (job.Result, error) {
-	select {
-	case <-ctx.Done():
-		return job.Result{}, ctx.Err()
-	case res, ok := <-p.results:
-		if !ok {
-			return job.Result{}, ErrChanClosed
-		}
-		return res, nil
-	}
-}*/
-
-func (p *PoolHandler) Start(ctx context.Context) error {
-	/*	for i := 0; i < int(p.workerCount); i++ {
-		p.wg.Add(1)
-		ctxCancel, cancel := context.WithCancel(context.Background())
-		p.cancels = append(p.cancels, cancel)
-		go p.execFn(ctxCancel, newClient(), &p.wg, p.jobs, p.results, p.cfg)
-	}*/
-	return nil
-}
-
-func (p *PoolHandler) Stop(ctx context.Context) error {
-	/*	for i := 0; i < len(p.cancels); i++ {
-			p.cancels[i]()
-		}
-		p.wg.Wait()
-		close(p.jobs)
-		close(p.results)*/
-	return nil
 }
 
 func plainTxtFunc(ctx context.Context, client *http.Client, server, data string) error {

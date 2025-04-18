@@ -1,3 +1,4 @@
+// Package httphmacsha256
 package httphmacsha256
 
 import (

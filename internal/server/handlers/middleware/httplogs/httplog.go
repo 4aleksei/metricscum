@@ -1,3 +1,4 @@
+// Package httplogs -  middleware for logging  http req/resp
 package httplogs
 
 import (
