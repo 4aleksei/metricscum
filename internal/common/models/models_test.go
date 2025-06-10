@@ -27,7 +27,6 @@ func checkModels(testModel Metrics, tt Metrics) bool {
 	} else if tt.Delta != nil {
 		return false
 	}
-
 	if testModel.Value != nil {
 		if tt.Value == nil {
 			return false

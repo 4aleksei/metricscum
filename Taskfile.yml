@@ -78,4 +78,3 @@ tasks:
           go build
           cd ../../
           go vet -vettool=./cmd/staticlint/staticlint ./...
-
