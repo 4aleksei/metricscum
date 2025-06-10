@@ -78,3 +78,12 @@ tasks:
           go build
           cd ../../
           go vet -vettool=./cmd/staticlint/staticlint ./...
+  build:
+      desc: Run build modules
+      cmds:
+        - |
+          cd ./cmd/agent
+          go build  -ldflags "-X main.buildVersion=v1.0.1 -X 'main.buildDate=$(date +'%Y/%m/%d %H:%M:%S')' -X 'main.buildCommit=$(git log --pretty=format:%h -n 1)'"
+          cd ../server
+          go build  -ldflags "-X main.buildVersion=v1.0.1 -X 'main.buildDate=$(date +'%Y/%m/%d %H:%M:%S')'  -X 'main.buildCommit=$(git log --pretty=format:%h -n 1)'"
+    
