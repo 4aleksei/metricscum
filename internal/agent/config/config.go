@@ -10,15 +10,15 @@ import (
 )
 
 type Config struct {
+	Lcfg           *logger.Config
 	Address        string
 	Level          string
+	Key            string
 	ReportInterval int64
 	PollInterval   int64
-	ContentJSON    bool
 	ContentBatch   int64
-	Lcfg           *logger.Config
-	Key            string
 	RateLimit      int64
+	ContentJSON    bool
 }
 
 const (

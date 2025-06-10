@@ -11,8 +11,8 @@ import (
 type (
 	Logger struct {
 		L      *zap.Logger
-		slevel string
 		level  zap.AtomicLevel
+		slevel string
 	}
 
 	Config struct {

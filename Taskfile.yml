@@ -70,3 +70,12 @@ tasks:
         - |
           go test -v -coverprofile=coverage.out ./...
           go tool cover -func=coverage.out
+  checker:
+      desc: Run multichecker
+      cmds:
+        - |
+          cd ./cmd/staticlint
+          go build
+          cd ../../
+          go vet -vettool=./cmd/staticlint/staticlint ./...
+

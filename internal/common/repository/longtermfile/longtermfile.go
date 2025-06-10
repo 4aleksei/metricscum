@@ -41,12 +41,11 @@ type (
 
 	longtermfile struct {
 		sourcesRead   sourceReader
-		middleReads   []middleReaders
 		modelsdecoder modelsReader
-
 		sourcesWrite  sourceWriter
-		middleWriters []middleWriters
 		modelsencoder modelsWriter
+		middleReads   []middleReaders
+		middleWriters []middleWriters
 	}
 )
 

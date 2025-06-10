@@ -18,8 +18,8 @@ type AppGather struct {
 	serv   *service.HandlerStore
 	l      *logger.Logger
 	cfg    *config.Config
-	wg     sync.WaitGroup
 	cancel context.CancelFunc
+	wg     sync.WaitGroup
 }
 
 func NewAppGather(serv *service.HandlerStore, l *logger.Logger, cfg *config.Config) *AppGather {

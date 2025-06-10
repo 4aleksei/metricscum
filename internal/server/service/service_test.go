@@ -9,9 +9,9 @@ import (
 func Test_CheckType(t *testing.T) {
 	h := &HandlerStore{}
 	tests := []struct {
+		want  error
 		name  string
 		value string
-		want  error
 	}{
 		{name: "empty Tyoe", value: "", want: valuemetric.ErrBadTypeValue},
 		{name: "counter Type", value: "counter", want: nil},

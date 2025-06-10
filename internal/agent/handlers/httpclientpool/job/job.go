@@ -8,14 +8,14 @@ type (
 	JobID uint64
 
 	Result struct {
-		Result int
 		Err    error
+		Result int
 		ID     JobID
 	}
 
 	Job struct {
-		ID    JobID
 		Value []models.Metrics
+		ID    JobID
 	}
 
 	JobDone struct{}

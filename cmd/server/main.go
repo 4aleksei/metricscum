@@ -38,17 +38,17 @@ func run() error {
 	}
 
 	if cfg.DBcfg.DatabaseDSN != "" {
-		err := migrate.Migrate(l, cfg.DBcfg.DatabaseDSN, "up")
-		if err != nil {
-			l.Error("Error goose UP migration:", zap.Error(err))
-			return err
+		errM := migrate.Migrate(l, cfg.DBcfg.DatabaseDSN, "up")
+		if errM != nil {
+			l.Error("Error goose UP migration:", zap.Error(errM))
+			return errM
 		}
 	}
 
-	storageRes, err := resources.CreateResouces(cfg, l)
-	if err != nil {
-		l.Error("Error cretae resources :", zap.Error(err))
-		return err
+	storageRes, errC := resources.CreateResouces(cfg, l)
+	if errC != nil {
+		l.Error("Error cretae resources :", zap.Error(errC))
+		return errC
 	}
 
 	metricsService := service.NewHandlerStore(storageRes.Store)
@@ -65,15 +65,15 @@ func run() error {
 	shutdownCtx, shutdownRelease := context.WithTimeout(context.Background(), time.Duration(defaultHTTPshutdown)*time.Second)
 	defer shutdownRelease()
 
-	if err := server.Srv.Shutdown(shutdownCtx); err != nil {
-		l.Error("HTTP shutdown error :", zap.Error(err))
+	if errS := server.Srv.Shutdown(shutdownCtx); errS != nil {
+		l.Error("HTTP shutdown error :", zap.Error(errS))
 	} else {
 		l.Info("Server shutdown complete")
 	}
 
-	err = storageRes.Close(context.Background())
-	if err != nil {
-		l.Error("Resources close error :", zap.Error(err))
+	errClose := storageRes.Close(context.Background())
+	if errClose != nil {
+		l.Error("Resources close error :", zap.Error(errClose))
 	} else {
 		l.Info("Resources close complete")
 	}

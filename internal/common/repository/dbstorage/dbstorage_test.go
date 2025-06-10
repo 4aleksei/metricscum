@@ -25,8 +25,8 @@ func Test_PingContext(t *testing.T) {
 		l: nil}
 
 	tests := []struct {
-		name string
 		want error
+		name string
 	}{
 		{name: "Test Ping", want: nil},
 	}
@@ -57,8 +57,8 @@ func Test_AddMulti(t *testing.T) {
 		l: nil}
 
 	tests := []struct {
-		name string
 		want error
+		name string
 	}{
 		{name: "Test AddMulti", want: nil},
 	}
@@ -89,11 +89,11 @@ func Test_Add(t *testing.T) {
 		l: l}
 
 	tests := []struct {
+		wantErr error
 		name    string
 		valName string
 		value   valuemetric.ValueMetric
 		want    valuemetric.ValueMetric
-		wantErr error
 	}{
 		{name: "Test Add", valName: "Test1", value: *v, want: *v, wantErr: valuemetric.ErrBadTypeValue},
 	}
@@ -131,11 +131,11 @@ func Test_Get(t *testing.T) {
 		l: l}
 
 	tests := []struct {
+		wantErr error
 		name    string
 		valName string
 		value   valuemetric.ValueMetric
 		want    valuemetric.ValueMetric
-		wantErr error
 	}{
 		{name: "Test Add", valName: "Test1", want: *v, wantErr: valuemetric.ErrBadTypeValue},
 	}
@@ -171,11 +171,11 @@ func Test_ReadAll(t *testing.T) {
 		l: l}
 
 	tests := []struct {
+		wantErr error
 		name    string
 		valName string
 		value   valuemetric.ValueMetric
 		want    valuemetric.ValueMetric
-		wantErr error
 	}{
 		{name: "Test ReadAll", valName: "Test1", wantErr: valuemetric.ErrBadTypeValue},
 	}
@@ -200,8 +200,8 @@ func Test_ReadAllClearCounters(t *testing.T) {
 		l: nil}
 
 	tests := []struct {
-		name    string
 		wantErr error
+		name    string
 	}{
 		{name: "Test ReadAllClearCounters", wantErr: nil},
 	}
