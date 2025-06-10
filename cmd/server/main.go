@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -24,7 +25,20 @@ const (
 	defaultHTTPshutdown int = 10
 )
 
+var (
+	buildVersion string = "N/A"
+	buildDate    string = "N/A"
+	buildCommit  string = "N/A"
+)
+
+func printVersion() {
+	fmt.Println("Build version: ", buildVersion)
+	fmt.Println("Build date: ", buildDate)
+	fmt.Println("Build commit: ", buildCommit)
+}
+
 func main() {
+	printVersion()
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}
