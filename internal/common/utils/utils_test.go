@@ -9,8 +9,8 @@ import (
 func Test_Setint64(t *testing.T) {
 	var a int64 = 10
 	tests := []struct {
-		name string
 		val  *int64
+		name string
 		want int64
 	}{
 		{name: "Test Setint64", val: &a, want: 10},
@@ -28,8 +28,8 @@ func Test_Setint64(t *testing.T) {
 func Test_Setfloat64(t *testing.T) {
 	a := 10.10
 	tests := []struct {
-		name string
 		val  *float64
+		name string
 		want float64
 	}{
 		{name: "Test Setfloat64", val: &a, want: 10.10},

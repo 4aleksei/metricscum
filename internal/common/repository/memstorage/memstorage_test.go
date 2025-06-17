@@ -13,8 +13,8 @@ import (
 func Test_PingContext(t *testing.T) {
 	n := NewStore()
 	tests := []struct {
-		name string
 		want error
+		name string
 	}{
 		{name: "Test Ping", want: nil},
 	}
@@ -36,11 +36,11 @@ func Test_Add(t *testing.T) {
 	vI := valuemetric.ConvertToIntValueMetric(55)
 	vII := valuemetric.ConvertToIntValueMetric(55 + 55)
 	tests := []struct {
+		wantErr error
 		name    string
 		valName string
 		val     valuemetric.ValueMetric
 		wantVal valuemetric.ValueMetric
-		wantErr error
 	}{
 		{name: "Test Add Int", valName: "test1", val: *vI, wantVal: *vI, wantErr: nil},
 		{name: "Test Add Float", valName: "test2", val: *vF, wantVal: *vF, wantErr: nil},
@@ -73,10 +73,10 @@ func Test_Get(t *testing.T) {
 	_, _ = n.Add(context.Background(), nameOfTest2, *vF)
 
 	tests := []struct {
+		wantErr error
 		name    string
 		valName string
 		wantVal valuemetric.ValueMetric
-		wantErr error
 	}{
 		{name: "Test Get Int", valName: nameOfTest1, wantVal: *vI, wantErr: nil},
 		{name: "Test Get Float", valName: nameOfTest2, wantVal: *vF, wantErr: nil},
@@ -116,10 +116,10 @@ func Test_AddMulti(t *testing.T) {
 	modval4 = append(modval4, models.Metrics{ID: "Test4", MType: "counter"})
 
 	tests := []struct {
+		wantErr error
 		name    string
 		val     []models.Metrics
 		wantVal []models.Metrics
-		wantErr error
 	}{
 		{name: "Test AddMulti", val: modval, wantVal: modval, wantErr: nil},
 		{name: "Test AddMulti Error Kind", val: modval2, wantVal: modval2, wantErr: valuemetric.ErrBadTypeValue},
@@ -150,10 +150,10 @@ func Test_ReadAllClearCounters(t *testing.T) {
 	_, _ = n.Add(context.Background(), nameOfTest2, *vF)
 
 	tests := []struct {
+		wantErr error
 		name    string
 		valName string
 		wantVal valuemetric.ValueMetric
-		wantErr error
 	}{
 		{name: "Test Get Int", valName: nameOfTest1, wantVal: *vI, wantErr: nil},
 	}
@@ -189,10 +189,10 @@ func Test_ReadAll(t *testing.T) {
 	_, _ = n.Add(context.Background(), nameOfTest2, *vF)
 
 	tests := []struct {
+		wantErr error
 		name    string
 		valName string
 		wantVal valuemetric.ValueMetric
-		wantErr error
 	}{
 		{name: "Test Get Int", valName: nameOfTest1, wantVal: *vI, wantErr: nil},
 	}

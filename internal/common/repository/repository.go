@@ -1,3 +1,4 @@
+// Package repository  - Storage base in file
 package repository
 
 import (
@@ -128,8 +129,8 @@ func (storage *MemStorageMuxLongTerm) doWriteData(ctx context.Context) error {
 		return err
 	}
 	defer func() {
-		if err := storage.filestorage.CloseWrite(); err != nil {
-			storage.l.Debug("error writing data", zap.Error(err))
+		if errF := storage.filestorage.CloseWrite(); errF != nil {
+			storage.l.Debug("error writing data", zap.Error(errF))
 		}
 	}()
 

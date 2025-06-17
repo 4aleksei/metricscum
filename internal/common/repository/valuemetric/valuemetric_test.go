@@ -50,12 +50,12 @@ func Test_ConvertToValueMetricInt(t *testing.T) {
 	testFloat := 66.33
 
 	tests := []struct {
-		name    string
-		kind    valueKind
+		wantErr error
 		delta   *int64
 		value   *float64
+		name    string
 		wantVal ValueMetric
-		wantErr error
+		kind    valueKind
 	}{
 		{name: "Test kindInt64", kind: kindInt64, delta: &testInt, value: nil, wantVal: ValueMetric{kindInt64, 44, 0}, wantErr: nil},
 		{name: "Test kindFloat64", kind: kindFloat64, delta: nil, value: &testFloat, wantVal: ValueMetric{kindFloat64, 0, 66.33}, wantErr: nil},
@@ -79,13 +79,12 @@ func Test_ConvertToValueMetricInt(t *testing.T) {
 }
 
 func Test_ConvertToValueMetric(t *testing.T) {
-	//ConvertToValueMetric(kind valueKind, valstr string) (*ValueMetric, error)
 	tests := []struct {
+		wantErr error
 		name    string
-		kind    valueKind
 		value   string
 		wantVal ValueMetric
-		wantErr error
+		kind    valueKind
 	}{
 		{name: "Test kindInt64", kind: kindInt64, value: "44", wantVal: ValueMetric{kindInt64, 44, 0}, wantErr: nil},
 		{name: "Test kindFloat64", kind: kindFloat64, value: "66.33", wantVal: ValueMetric{kindFloat64, 0, 66.33}, wantErr: nil},
@@ -109,13 +108,11 @@ func Test_ConvertToValueMetric(t *testing.T) {
 }
 
 func Test_ConvertValueMetricToPlain(t *testing.T) {
-	//func ConvertValueMetricToPlain(val ValueMetric) (a, b string)
-
 	tests := []struct {
 		name     string
-		value    ValueMetric
 		wantValA string
 		wantValB string
+		value    ValueMetric
 	}{
 		{name: "Test kindInt64", value: ValueMetric{kind: kindInt64, valueInt: 44, valueFloat: 0}, wantValA: "counter", wantValB: "44"},
 		{name: "Test kindFloat64", value: ValueMetric{kind: kindFloat64, valueInt: 0, valueFloat: 44.5}, wantValA: "gauge", wantValB: "44.5"},
@@ -138,9 +135,9 @@ func Test_ConvertValueMetricToPlain(t *testing.T) {
 func Test_ConvertValueMetricToPlainOpt(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    ValueMetric
 		wantValA string
 		wantValB string
+		value    ValueMetric
 	}{
 		{name: "Test kindInt64", value: ValueMetric{kind: kindInt64, valueInt: 44, valueFloat: 0}, wantValA: "44"},
 		{name: "Test kindFloat64", value: ValueMetric{kind: kindFloat64, valueInt: 0, valueFloat: 44.5}, wantValA: "44.5"},
@@ -218,8 +215,8 @@ func Test_ConvertToIntValueMetric(t *testing.T) {
 func Test_GetTypeStr(t *testing.T) {
 	tests := []struct {
 		name  string
-		value ValueMetric
 		want  string
+		value ValueMetric
 	}{
 		{name: "Test kindInt64", value: ValueMetric{kind: kindInt64, valueInt: 55, valueFloat: 0}, want: "counter"},
 		{name: "Test kindFloat64", value: ValueMetric{kind: kindFloat64, valueInt: 0, valueFloat: 55.66}, want: "gauge"},
@@ -259,8 +256,8 @@ func Test_GetKind(t *testing.T) {
 func Test_GetKindStr(t *testing.T) {
 	tests := []struct {
 		name  string
-		value valueKind
 		want  string
+		value valueKind
 	}{
 		{name: "Test kindInt64", value: 1, want: "counter"},
 		{name: "Test kindFloat64", value: 2, want: "gauge"},
@@ -279,11 +276,10 @@ func Test_GetKindStr(t *testing.T) {
 
 func Test_GetKindVal(t *testing.T) {
 	tests := []struct {
-		name string
-		val  string
-
-		want    valueKind
 		wantErr error
+		name    string
+		val     string
+		want    valueKind
 	}{
 		{name: "Test kindInt64", val: "counter", want: 1, wantErr: nil},
 		{name: "Test kindFloat64", val: "gauge", want: 2, wantErr: nil},
@@ -310,9 +306,9 @@ func Test_ValueInt(t *testing.T) {
 	val := ValueMetric{kind: kindInt64, valueInt: 44, valueFloat: 0}
 	val2 := ValueMetric{kind: kindFloat64, valueInt: 0, valueFloat: 44.5}
 	tests := []struct {
+		want *int64
 		name string
 		val  ValueMetric
-		want *int64
 	}{
 		{name: "Test kindInt64", val: val, want: &val.valueInt},
 		{name: "Test kindFloat64", val: val2, want: nil},
@@ -338,9 +334,9 @@ func Test_ValueFloat(t *testing.T) {
 	val := ValueMetric{kind: kindInt64, valueInt: 44, valueFloat: 0}
 	val2 := ValueMetric{kind: kindFloat64, valueInt: 0, valueFloat: 44.5}
 	tests := []struct {
+		want *float64
 		name string
 		val  ValueMetric
-		want *float64
 	}{
 		{name: "Test kindFloat64", val: val2, want: &val2.valueFloat},
 		{name: "Test kindInt64", val: val, want: nil},
@@ -364,10 +360,10 @@ func Test_ValueFloat(t *testing.T) {
 
 func Test_GetKindInt(t *testing.T) {
 	tests := []struct {
+		wantErr error
 		name    string
 		val     int
 		want    valueKind
-		wantErr error
 	}{
 		{name: "Test kindInt64", val: 1, want: 1, wantErr: nil},
 		{name: "Test kindFloat64", val: 2, want: 2, wantErr: nil},

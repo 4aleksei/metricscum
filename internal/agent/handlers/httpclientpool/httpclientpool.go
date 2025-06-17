@@ -37,9 +37,9 @@ var (
 
 type (
 	PoolHandler struct {
-		WorkerCount int
 		cfg         *config.Config
 		clients     []clientInstance
+		WorkerCount int
 	}
 	functioExec func(context.Context, *sync.WaitGroup, *http.Client,
 		<-chan job.Job, chan<- job.Result, *config.Config)

@@ -1,3 +1,4 @@
+// Package pg - Postgres realization for store metrics
 package pg
 
 import (
@@ -91,7 +92,6 @@ func (d *DB) Upsert(ctx context.Context, modval store.Metrics, prog func(n strin
 	} else {
 		query += onConflictStatementValue
 	}
-
 	row := d.dbpool.QueryRow(ctx, query, modval.Name, modval.Kind, modval.Delta, modval.Value)
 	if row != nil {
 		var m store.Metrics
@@ -122,23 +122,19 @@ func (d *DB) Upserts(ctx context.Context,
 	if err != nil {
 		return fmt.Errorf("error begin tx: %w", err)
 	}
-
 	defer func() {
 		defer func() { _ = tx.Rollback(ctx) }()
 	}()
-
 	var indexLimit int
 	if len(modval) > limitbatch {
 		indexLimit = limitbatch
 	} else {
 		indexLimit = len(modval)
 	}
-
 	for index := 0; index < len(modval); index += indexLimit {
 		if (index + indexLimit) > len(modval) {
 			indexLimit = len(modval) - index
 		}
-
 		batch := &pgx.Batch{}
 		for i := 0; i < indexLimit; i++ {
 			query := queryDefault
@@ -200,9 +196,9 @@ func (d *DB) SelectValueAll(ctx context.Context, prog func(n string, k int, d in
 
 	for rows.Next() {
 		var m store.Metrics
-		err := rows.Scan(&m.Name, &m.Kind, &m.Delta, &m.Value)
-		if err != nil {
-			return err
+		errS := rows.Scan(&m.Name, &m.Kind, &m.Delta, &m.Value)
+		if errS != nil {
+			return errS
 		}
 
 		errK := prog(m.Name, m.Kind, m.Delta.Int64, m.Value.Float64)

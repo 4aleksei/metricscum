@@ -24,10 +24,8 @@ func checkModels(testModel Metrics, tt Metrics) bool {
 		if *tt.Delta != *testModel.Delta {
 			return false
 		}
-	} else {
-		if tt.Delta != nil {
-			return false
-		}
+	} else if tt.Delta != nil {
+		return false
 	}
 	if testModel.Value != nil {
 		if tt.Value == nil {
@@ -36,10 +34,8 @@ func checkModels(testModel Metrics, tt Metrics) bool {
 		if *tt.Value != *testModel.Value {
 			return false
 		}
-	} else {
-		if tt.Value != nil {
-			return false
-		}
+	} else if tt.Value != nil {
+		return false
 	}
 	return true
 }
@@ -49,10 +45,10 @@ func Test_ConvertMetricToModel(t *testing.T) {
 	valFloat := valuemetric.ConvertToFloatValueMetric(44.66)
 
 	tests := []struct {
+		want      Metrics
+		value     *valuemetric.ValueMetric
 		name      string
 		valueName string
-		value     *valuemetric.ValueMetric
-		want      Metrics
 	}{
 		{name: "Test Convert to Models Int", valueName: "TestMetr", value: valInt, want: Metrics{ID: "TestMetr", MType: "counter", Delta: valInt.ValueInt()}},
 		{name: "Test Convert to Models Float", valueName: "TestMet2", value: valFloat, want: Metrics{ID: "TestMet2", MType: "gauge", Value: valFloat.ValueFloat()}},
@@ -96,10 +92,10 @@ func Test_JSONDecode(t *testing.T) {
 	valFloat := valuemetric.ConvertToFloatValueMetric(44.66)
 
 	tests := []struct {
-		name    string
-		value   string
 		want    Metrics
 		wantErr error
+		name    string
+		value   string
 	}{
 		{name: "Test Convert Json to Metrics Int", value: "{ \"id\":\"TestMetr\" , \"type\":\"counter\" , \"delta\":44  }", want: Metrics{ID: "TestMetr", MType: "counter", Delta: valInt.ValueInt()}, wantErr: nil},
 		{name: "Test Convert Json to Metrics Float", value: "{ \"id\":\"TestMet2\" , \"type\":\"gauge\" , \"value\":44.66  }", want: Metrics{ID: "TestMet2", MType: "gauge", Value: valFloat.ValueFloat()}, wantErr: nil},
@@ -126,10 +122,10 @@ func Test_JSONEncodeBytes(t *testing.T) {
 	valFloat := valuemetric.ConvertToFloatValueMetric(44.66)
 
 	tests := []struct {
-		name    string
 		value   Metrics
-		want    string
 		wantErr error
+		name    string
+		want    string
 	}{
 		{name: "Test Convert Metrics to Json  Int", want: "{ \"id\":\"TestMetr\" , \"type\":\"counter\" , \"delta\":44  }", value: Metrics{ID: "TestMetr", MType: "counter", Delta: valInt.ValueInt()}, wantErr: nil},
 		{name: "Test Convert Metrics to Json  Float", want: "{ \"id\":\"TestMet2\" , \"type\":\"gauge\" , \"value\":44.66  }", value: Metrics{ID: "TestMet2", MType: "gauge", Value: valFloat.ValueFloat()}, wantErr: nil},
@@ -159,10 +155,10 @@ func Test_JSONDecodeSlice(t *testing.T) {
 	modval = append(modval, Metrics{ID: "TestMet2", MType: "gauge", Value: &b})
 
 	tests := []struct {
+		wantErr error
 		name    string
 		value   string
 		want    []Metrics
-		wantErr error
 	}{
 		{name: "Test Convert Json to Metrics Int", value: "[ { \"id\":\"TestMetr\" , \"type\":\"counter\" , \"delta\":44  } , { \"id\":\"TestMet2\" , \"type\":\"gauge\" , \"value\":44.66  }]", want: modval, wantErr: nil},
 	}
@@ -190,10 +186,10 @@ func Test_JSONEncodeBytesSlice(t *testing.T) {
 	modval = append(modval, Metrics{ID: "TestMet2", MType: "gauge", Value: &b})
 
 	tests := []struct {
-		name    string
-		value   []Metrics
-		want    string
 		wantErr error
+		name    string
+		want    string
+		value   []Metrics
 	}{
 		{name: "Test Convert Metrics to Json  Int", want: "[{ \"id\":\"TestMetr\" , \"type\":\"counter\" , \"delta\":44  } , { \"id\":\"TestMet2\" , \"type\":\"gauge\" , \"value\":44.66  }]", value: modval, wantErr: nil},
 	}

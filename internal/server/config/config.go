@@ -12,11 +12,9 @@ type Config struct {
 	Address  string
 	Level    string
 	FilePath string
-
-	Repcfg repository.Config
-	DBcfg  pg.Config
-
-	Key string
+	DBcfg    pg.Config
+	Key      string
+	Repcfg   repository.Config
 }
 
 const (

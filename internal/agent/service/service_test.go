@@ -33,11 +33,11 @@ func Test_SetGauge(t *testing.T) {
 	serV := NewHandlerStore(stor, nil, nil, nil)
 
 	tests := []struct {
+		wantErr   error
+		wantVal   *valuemetric.ValueMetric
 		name      string
 		valueName string
 		value     float64
-		wantVal   *valuemetric.ValueMetric
-		wantErr   error
 	}{
 		{name: "Test kindIGauge64", valueName: "Test1", value: 44.44, wantVal: valuemetric.ConvertToFloatValueMetric(44.44), wantErr: nil},
 		{name: "Test Overwrite", valueName: "Test1", value: 55.55, wantVal: valuemetric.ConvertToFloatValueMetric(55.55), wantErr: nil},
@@ -64,11 +64,11 @@ func Test_SetCounter(t *testing.T) {
 	serV := NewHandlerStore(stor, nil, nil, nil)
 
 	tests := []struct {
+		wantErr   error
+		wantVal   *valuemetric.ValueMetric
 		name      string
 		valueName string
 		value     int64
-		wantVal   *valuemetric.ValueMetric
-		wantErr   error
 	}{
 		{name: "Test kindInt64", valueName: "Test1", value: 44, wantVal: valuemetric.ConvertToIntValueMetric(44), wantErr: nil},
 		{name: "Test Add", valueName: "Test1", value: 55, wantVal: valuemetric.ConvertToIntValueMetric(55 + 44), wantErr: nil},
@@ -109,11 +109,11 @@ func Test_SetGaugeMulti(t *testing.T) {
 	ss = append(ss, "Test2")
 
 	tests := []struct {
+		wantErr   error
 		name      string
 		valueName []string
 		value     []float64
 		wantVal   []models.Metrics
-		wantErr   error
 	}{
 		{name: "Test FLOAT64 multi", valueName: ss, value: ff, wantVal: modval, wantErr: nil},
 	}

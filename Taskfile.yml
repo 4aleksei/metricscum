@@ -70,3 +70,20 @@ tasks:
         - |
           go test -v -coverprofile=coverage.out ./...
           go tool cover -func=coverage.out
+  checker:
+      desc: Run multichecker
+      cmds:
+        - |
+          cd ./cmd/staticlint
+          go build
+          cd ../../
+          go vet -vettool=./cmd/staticlint/staticlint ./...
+  build:
+      desc: Run build modules
+      cmds:
+        - |
+          cd ./cmd/agent
+          go build  -ldflags "-X main.buildVersion=v1.0.1 -X 'main.buildDate=$(date +'%Y/%m/%d %H:%M:%S')' -X 'main.buildCommit=$(git log --pretty=format:%h -n 1)'"
+          cd ../server
+          go build  -ldflags "-X main.buildVersion=v1.0.1 -X 'main.buildDate=$(date +'%Y/%m/%d %H:%M:%S')'  -X 'main.buildCommit=$(git log --pretty=format:%h -n 1)'"
+    

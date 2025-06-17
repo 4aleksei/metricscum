@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func Example_mainPage() { //endpoint GET "/"
+func Example_mainPage() {
 	h := new(HandlersServer)
 	req := httptest.NewRequest("GET", "/bad", nil)
 	w := httptest.NewRecorder()
@@ -31,7 +31,7 @@ func Example_mainPage() { //endpoint GET "/"
 	// Bad request
 }
 
-func Example_mainPageJSON() { //endpoint POST "/update/"
+func Example_mainPageJSON() {
 	h := new(HandlersServer)
 	req := httptest.NewRequest("POST", "/update/", nil)
 	w := httptest.NewRecorder()
@@ -50,7 +50,7 @@ func Example_mainPageJSON() { //endpoint POST "/update/"
 	// Bad type!
 }
 
-func Example_mainPostPagePlain() { //endpoint POST "/update/{type}/{name}/{value}"
+func Example_mainPostPagePlain() {
 	store := service.NewHandlerStore(memstorage.NewStore())
 	h := new(HandlersServer)
 	h.store = store

@@ -17,13 +17,13 @@ type (
 	}
 
 	fileReader struct {
-		filename string
 		reader   *consumer
+		filename string
 	}
 
 	fileWriter struct {
-		filename string
 		writer   *producer
+		filename string
 	}
 )
 
