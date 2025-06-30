@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/4aleksei/metricscum/internal/common/logger"
 	"go.uber.org/zap"
@@ -21,6 +22,7 @@ type Config struct {
 	ContentBatch   int64
 	RateLimit      int64
 	ContentJSON    bool
+	ConfigJsonFile string
 }
 
 const (
@@ -32,23 +34,71 @@ const (
 	ContentBatchDefault   int64  = 0
 	KeyDefault            string = ""
 	RateLimitDefault      int64  = 10
+	ConfigDefaultJson     string = ""
+	PublicKeyDefault      string = ""
 )
 
-func GetConfig(l *logger.Logger) *Config {
+func initDefaultCfg() *Config {
 	cfg := new(Config)
-	flag.StringVar(&cfg.Address, "a", AddressDefault, "address and port to run server")
-	flag.StringVar(&cfg.Level, "v", LevelDefault, "level logging")
-	flag.Int64Var(&cfg.ReportInterval, "r", ReportIntervalDefault, "ReportInterval")
-	flag.Int64Var(&cfg.PollInterval, "p", PollIntervalDefault, "PollInterval")
-	flag.BoolVar(&cfg.ContentJSON, "j", ContentJSONDefault, "ContentJSON true/false")
+	cfg.Address = AddressDefault
+	cfg.Level = LevelDefault
+	cfg.Key = KeyDefault
+	cfg.ConfigJsonFile = ConfigDefaultJson
 
-	flag.Int64Var(&cfg.ContentBatch, "b", ContentBatchDefault, "ContentBatch size uint")
+	cfg.ReportInterval = ReportIntervalDefault
+	cfg.PollInterval = PollIntervalDefault
+	cfg.ContentBatch = ContentBatchDefault
 
-	flag.StringVar(&cfg.Key, "k", KeyDefault, "key for signature")
+	cfg.ContentJSON = ContentJSONDefault
 
-	flag.Int64Var(&cfg.RateLimit, "l", RateLimitDefault, "RateLimit, pool workers")
+	cfg.PublicKeyFile = PublicKeyDefault
+	return cfg
+}
 
-	flag.StringVar(&cfg.PublicKeyFile, "crypto-key", KeyDefault, "Public key file name")
+func getJsonFileName(key string, cfg *Config) bool {
+	for i, value := range os.Args {
+		if value == key {
+			if (i + 1) < len(os.Args) {
+				cfg.ConfigJsonFile = strings.Trim(os.Args[i+1], " '\"")
+			}
+		}
+		if value == "-h" || value == "--help" {
+			cfg.ConfigJsonFile = ""
+			return false
+		}
+	}
+	return true
+}
+
+func GetConfig(l *logger.Logger) (*Config, error) {
+	cfg := initDefaultCfg()
+
+	dnhelp := getJsonFileName("-c", cfg)
+	if envConfig := os.Getenv("CONFIG"); envConfig != "" && dnhelp {
+		cfg.ConfigJsonFile = envConfig
+	}
+
+	if cfg.ConfigJsonFile != "" {
+		err := loadConfigJson(cfg.ConfigJsonFile, cfg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	flag.StringVar(&cfg.ConfigJsonFile, "c", cfg.ConfigJsonFile, "Config file name in json format")
+	flag.StringVar(&cfg.Address, "a", cfg.Address, "address and port to run server")
+	flag.StringVar(&cfg.Level, "v", cfg.Level, "level logging")
+	flag.Int64Var(&cfg.ReportInterval, "r", cfg.ReportInterval, "ReportInterval")
+	flag.Int64Var(&cfg.PollInterval, "p", cfg.PollInterval, "PollInterval")
+	flag.BoolVar(&cfg.ContentJSON, "j", cfg.ContentJSON, "ContentJSON true/false")
+
+	flag.Int64Var(&cfg.ContentBatch, "b", cfg.ContentBatch, "ContentBatch size uint")
+
+	flag.StringVar(&cfg.Key, "k", cfg.Key, "key for signature")
+
+	flag.Int64Var(&cfg.RateLimit, "l", cfg.RateLimit, "RateLimit, pool workers")
+
+	flag.StringVar(&cfg.PublicKeyFile, "crypto-key", cfg.PublicKeyFile, "Public key file name")
 
 	flag.Parse()
 
@@ -71,6 +121,7 @@ func GetConfig(l *logger.Logger) *Config {
 		val, err := strconv.Atoi(envReportInterval)
 		if err != nil {
 			l.L.Debug("Error in converting env report interval to int:", zap.Error(err))
+			return nil, err
 		} else {
 			cfg.ReportInterval = int64(val)
 		}
@@ -80,6 +131,7 @@ func GetConfig(l *logger.Logger) *Config {
 		val, err := strconv.Atoi(envPollInterval)
 		if err != nil {
 			l.L.Debug("Error in converting env report interval to int:", zap.Error(err))
+			return nil, err
 		} else {
 			cfg.PollInterval = int64(val)
 		}
@@ -92,5 +144,5 @@ func GetConfig(l *logger.Logger) *Config {
 		cfg.RateLimit = 1
 	}
 
-	return cfg
+	return cfg, nil
 }

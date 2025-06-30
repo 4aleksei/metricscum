@@ -29,16 +29,16 @@ func (d Duration) String() string {
 }
 
 type Jsonconfig struct {
-	Restore       *bool     `json:"restore,omitempty"`
-	StoreInterval *Duration `json:"store_interval,omitempty"`
+	Address        *string   `json:"address,omitempty"`
+	ReportInterval *Duration `json:"report_interval,omitempty"`
+	PollInterval   *Duration `json:"poll_interval,omitempty"`
+	PublicKeyFile  *string   `json:"crypto_key,omitempty"`
 
-	DatabaseDsn *string `json:"database_dsn,omitempty"`
-
-	Address   *string `json:"address,omitempty"`
-	StoreFile *string `json:"store_file,omitempty"`
-	CryptoKey *string `json:"crypto_key,omitempty"`
-	Key       *string `json:"key,omitempty"`
-	Level     *string `json:"level,omitempty"`
+	Level        *string `json:"level,omitempty"`
+	Key          *string `json:"key,omitempty"`
+	ContentBatch *int64  `json:"content_batch,omitempty"`
+	RateLimit    *int64  `json:"rate_limit,omitempty"`
+	ContentJSON  *bool   `json:"content_json,omitempty"`
 }
 
 func jsonConfigDecode(body io.ReadCloser) (*Jsonconfig, error) {
@@ -64,35 +64,39 @@ func loadConfigJson(name string, cfg *Config) error {
 	if err != nil {
 		return err
 	}
-	if jsonconfig.Restore != nil {
-		cfg.Repcfg.Restore = *jsonconfig.Restore
+	if jsonconfig.ContentJSON != nil {
+		cfg.ContentJSON = *jsonconfig.ContentJSON
 	}
 
-	if jsonconfig.StoreInterval != nil {
-		cfg.Repcfg.Interval = int64(*jsonconfig.StoreInterval) / 1000000000
+	if jsonconfig.PollInterval != nil {
+		cfg.PollInterval = int64(*jsonconfig.PollInterval) / 1000000000
 	}
-	if jsonconfig.DatabaseDsn != nil {
-		cfg.DBcfg.DatabaseDSN = *jsonconfig.DatabaseDsn
+
+	if jsonconfig.ReportInterval != nil {
+		cfg.ReportInterval = int64(*jsonconfig.ReportInterval) / 1000000000
+	}
+
+	if jsonconfig.ContentBatch != nil {
+		cfg.ContentBatch = *jsonconfig.ContentBatch
 	}
 
 	if jsonconfig.Address != nil {
 		cfg.Address = *jsonconfig.Address
 	}
 
-	if jsonconfig.StoreFile != nil {
-		cfg.FilePath = *jsonconfig.StoreFile
-	}
-
 	if jsonconfig.Key != nil {
 		cfg.Key = *jsonconfig.Key
 	}
 
-	if jsonconfig.CryptoKey != nil {
-		cfg.PrivateKeyFile = *jsonconfig.CryptoKey
+	if jsonconfig.PublicKeyFile != nil {
+		cfg.PublicKeyFile = *jsonconfig.PublicKeyFile
 	}
 
 	if jsonconfig.Level != nil {
 		cfg.Level = *jsonconfig.Level
+	}
+	if jsonconfig.RateLimit != nil {
+		cfg.RateLimit = *jsonconfig.RateLimit
 	}
 	return nil
 }

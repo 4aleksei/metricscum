@@ -1,18 +1,14 @@
+// Package config
 package config
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/4aleksei/metricscum/internal/common/repository"
 	"github.com/4aleksei/metricscum/internal/common/store/pg"
-)
-
-const (
-	WriteIntervalDefault int64 = 300
-	RestoreDefault       bool  = true
 )
 
 type Config struct {
@@ -23,15 +19,19 @@ type Config struct {
 	Key            string
 	Repcfg         repository.Config
 	PrivateKeyFile string
+	ConfigJsonFile string
 }
 
 const (
-	AddressDefault     string = ":8080"
-	LevelDefault       string = "debug"
-	FilePathDefault    string = "./data.store"
-	databaseDSNDefault string = ""
-	KeyDefault         string = ""
-	ConfigFile         string = ""
+	AddressDefault        string = ":8080"
+	LevelDefault          string = "debug"
+	FilePathDefault       string = "./data.store"
+	databaseDSNDefault    string = ""
+	KeyDefault            string = ""
+	ConfigDefaultJson     string = ""
+	WriteIntervalDefault  int64  = 300
+	RestoreDefault        bool   = true
+	PrivateKeyFileDefault string = ""
 )
 
 func initDefaultCfg() *Config {
@@ -39,23 +39,32 @@ func initDefaultCfg() *Config {
 	cfg.Address = AddressDefault
 	cfg.Level = LevelDefault
 	cfg.FilePath = FilePathDefault
-
+	cfg.DBcfg.DatabaseDSN = databaseDSNDefault
+	cfg.Key = KeyDefault
+	cfg.Repcfg.Restore = RestoreDefault
+	cfg.Repcfg.Interval = WriteIntervalDefault
+	cfg.ConfigJsonFile = ConfigDefaultJson
+	cfg.PrivateKeyFile = PrivateKeyFileDefault
 	return cfg
 }
 
-func getJsonFileName() string {
+func getJsonFileName(key string, cfg *Config) bool {
 	for i, value := range os.Args {
-		if value == "-c" {
+		if value == key {
 			if (i + 1) < len(os.Args) {
-				return os.Args[i+1]
+				cfg.ConfigJsonFile = strings.Trim(os.Args[i+1], " '\"")
 			}
 		}
+		if value == "-h" || value == "--help" {
+			cfg.ConfigJsonFile = ""
+			return false
+		}
 	}
-	return ""
+	return true
 }
 
 func readConfigFlagPg(cfg *pg.Config) {
-	flag.StringVar(&cfg.DatabaseDSN, "d", databaseDSNDefault, "DATABASE_DSN")
+	flag.StringVar(&cfg.DatabaseDSN, "d", cfg.DatabaseDSN, "DATABASE_DSN")
 }
 
 func readConfigEnvPg(cfg *pg.Config) {
@@ -65,8 +74,8 @@ func readConfigEnvPg(cfg *pg.Config) {
 }
 
 func readConfigFlagRep(cfg *repository.Config) {
-	flag.Int64Var(&cfg.Interval, "i", WriteIntervalDefault, "Write data Interval")
-	flag.BoolVar(&cfg.Restore, "r", RestoreDefault, "Restore data true/false")
+	flag.Int64Var(&cfg.Interval, "i", cfg.Interval, "Write data Interval")
+	flag.BoolVar(&cfg.Restore, "r", cfg.Restore, "Restore data true/false")
 }
 
 func readConfigEnvRep(cfg *repository.Config) {
@@ -90,33 +99,37 @@ func readConfigEnvRep(cfg *repository.Config) {
 	}
 }
 
-func GetConfig() *Config {
-	jsonName := getJsonFileName()
+func GetConfig() (*Config, error) {
 	cfg := initDefaultCfg()
 
-	if jsonName != "" {
-		loadConfigJson(jsonName, cfg)
+	dnhelp := getJsonFileName("-c", cfg)
+	if envConfig := os.Getenv("CONFIG"); envConfig != "" && dnhelp {
+		cfg.ConfigJsonFile = envConfig
 	}
+
+	if cfg.ConfigJsonFile != "" {
+		err := loadConfigJson(cfg.ConfigJsonFile, cfg)
+		if err != nil {
+			return nil, err
+		}
+	}
+	flag.StringVar(&cfg.ConfigJsonFile, "c", cfg.ConfigJsonFile, "Config file name in json format")
 
 	flag.StringVar(&cfg.Address, "a", cfg.Address, "address and port to run server")
 
-	flag.StringVar(&cfg.Level, "v", LevelDefault, "level of logging")
-	flag.StringVar(&cfg.FilePath, "f", FilePathDefault, "FilePath store")
+	flag.StringVar(&cfg.Level, "v", cfg.Level, "level of logging")
+	flag.StringVar(&cfg.FilePath, "f", cfg.FilePath, "FilePath store")
 
 	readConfigFlagRep(&cfg.Repcfg)
 	readConfigFlagPg(&cfg.DBcfg)
 
-	flag.StringVar(&cfg.Key, "k", KeyDefault, "key for signature")
-	flag.StringVar(&cfg.PrivateKeyFile, "crypto-key", KeyDefault, "Private key file")
+	flag.StringVar(&cfg.Key, "k", cfg.Key, "key for signature")
+	flag.StringVar(&cfg.PrivateKeyFile, "crypto-key", cfg.PrivateKeyFile, "Private key file name (pem)")
 
 	flag.Parse()
-	fmt.Println(cfg.Address)
 
 	if envRunAddr := os.Getenv("ADDRESS"); envRunAddr != "" {
 		cfg.Address = envRunAddr
-
-		fmt.Println("SET ENV ADDRESS ", cfg.Address)
-
 	}
 	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
 		cfg.FilePath = envFilePath
@@ -132,5 +145,5 @@ func GetConfig() *Config {
 	readConfigEnvRep(&cfg.Repcfg)
 	readConfigEnvPg(&cfg.DBcfg)
 
-	return cfg
+	return cfg, nil
 }

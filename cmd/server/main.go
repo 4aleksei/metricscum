@@ -45,7 +45,11 @@ func main() {
 }
 
 func run() error {
-	cfg := config.GetConfig()
+	cfg, err := config.GetConfig()
+	if err != nil {
+		return err
+	}
+
 	l, err := logger.NewLog(cfg.Level)
 	if err != nil {
 		return err
