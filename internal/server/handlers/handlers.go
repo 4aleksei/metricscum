@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"database/sql"
 
+	"crypto/rsa"
 	"encoding/hex"
 	"errors"
 	"io"
@@ -16,6 +17,7 @@ import (
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
 	"github.com/4aleksei/metricscum/internal/server/config"
+	"github.com/4aleksei/metricscum/internal/server/handlers/middleware/httpaes"
 	"github.com/4aleksei/metricscum/internal/server/handlers/middleware/httpgzip"
 	"github.com/4aleksei/metricscum/internal/server/handlers/middleware/httphmacsha256"
 	"github.com/4aleksei/metricscum/internal/server/handlers/middleware/httplogs"
@@ -27,11 +29,12 @@ import (
 
 type (
 	HandlersServer struct {
-		store *service.HandlerStore
-		cfg   *config.Config
-		Srv   *http.Server
-		l     *zap.Logger
-		key   string
+		store      *service.HandlerStore
+		cfg        *config.Config
+		Srv        *http.Server
+		l          *zap.Logger
+		key        string
+		privateKey *rsa.PrivateKey
 	}
 )
 
@@ -50,6 +53,16 @@ func NewHandlers(store *service.HandlerStore, cfg *config.Config, l *zap.Logger)
 	h.cfg = cfg
 	h.key = h.cfg.Key
 	h.l = l
+
+	if h.cfg.PrivateKeyFile != "" {
+		pKey, err := httpaes.LoadKey(h.cfg.PrivateKeyFile)
+		if err != nil {
+			h.l.Debug("HTTP server Load private key error: ", zap.Error(err))
+		} else {
+			h.privateKey = pKey
+		}
+	}
+
 	h.Srv = &http.Server{
 		Addr:              h.cfg.Address,
 		Handler:           h.newRouter(),
@@ -72,6 +85,7 @@ func (h *HandlersServer) withLogging(next http.Handler) http.Handler {
 			zap.String("AcceptEnc", r.Header.Get("Accept-Encoding")),
 			zap.String("ContentEnc", r.Header.Get("Content-Encoding")),
 			zap.String("Accept", r.Header.Get("Accept")),
+			zap.String("AES-256", r.Header.Get("AES-256")),
 			zap.String("ContentType", r.Header.Get("Content-Type")),
 			zap.Duration("duration", duration),
 			zap.Int("resp_status", responseData.GetStatus()),
@@ -88,6 +102,24 @@ func (h *HandlersServer) Serve() {
 		}
 		h.l.Info("Stopped serving new connections.")
 	}()
+}
+
+func (h *HandlersServer) aesMiddleware(next http.Handler) http.Handler {
+	aesfn := func(w http.ResponseWriter, r *http.Request) {
+		aesEncoding := r.Header.Get("AES-256")
+		if aesEncoding != "" {
+			ar, err := httpaes.NewAesReader(r.Body, h.privateKey, aesEncoding)
+			if err != nil {
+				h.l.Debug("cannot decode aes", zap.Error(err))
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			r.Body = ar
+			defer ar.Close()
+		}
+		next.ServeHTTP(w, r)
+	}
+	return http.HandlerFunc(aesfn)
 }
 
 func (h *HandlersServer) gzipMiddleware(next http.Handler) http.Handler {
@@ -132,6 +164,11 @@ func (h *HandlersServer) newRouter() http.Handler {
 	mux := chi.NewRouter()
 
 	mux.Use(h.withLogging)
+
+	if h.privateKey != nil {
+		mux.Use(h.aesMiddleware)
+	}
+
 	mux.Use(h.gzipMiddleware)
 	if h.key != "" {
 		mux.Use(h.hmacsha256Middleware)

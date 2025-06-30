@@ -1,3 +1,4 @@
+// Package config - agent config read from  flags params and envVariables
 package config
 
 import (
@@ -14,6 +15,7 @@ type Config struct {
 	Address        string
 	Level          string
 	Key            string
+	PublicKeyFile  string
 	ReportInterval int64
 	PollInterval   int64
 	ContentBatch   int64
@@ -46,6 +48,8 @@ func GetConfig(l *logger.Logger) *Config {
 
 	flag.Int64Var(&cfg.RateLimit, "l", RateLimitDefault, "RateLimit, pool workers")
 
+	flag.StringVar(&cfg.PublicKeyFile, "crypto-key", KeyDefault, "Public key file name")
+
 	flag.Parse()
 
 	cfg.Lcfg = new(logger.Config)
@@ -57,6 +61,10 @@ func GetConfig(l *logger.Logger) *Config {
 
 	if envKey := os.Getenv("KEY"); envKey != "" {
 		cfg.Key = envKey
+	}
+
+	if envPublicKey := os.Getenv("CRYPTO_KEY"); envPublicKey != "" {
+		cfg.PublicKeyFile = envPublicKey
 	}
 
 	if envReportInterval := os.Getenv("REPORT_INTERVAL"); envReportInterval != "" {

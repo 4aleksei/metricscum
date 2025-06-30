@@ -4,10 +4,9 @@ package repository
 import (
 	"context"
 	"errors"
-	"flag"
+
 	"fmt"
-	"os"
-	"strconv"
+
 	"sync"
 	"time"
 
@@ -32,37 +31,6 @@ type (
 		Restore  bool
 	}
 )
-
-const (
-	WriteIntervalDefault int64 = 300
-	RestoreDefault       bool  = true
-)
-
-func ReadConfigFlag(cfg *Config) {
-	flag.Int64Var(&cfg.Interval, "i", WriteIntervalDefault, "Write data Interval")
-	flag.BoolVar(&cfg.Restore, "r", RestoreDefault, "Restore data true/false")
-}
-
-func ReadConfigEnv(cfg *Config) {
-	if envStoreInterval := os.Getenv("STORE_INTERVAL"); envStoreInterval != "" {
-		val, err := strconv.Atoi(envStoreInterval)
-		if err == nil {
-			if val >= 0 {
-				cfg.Interval = int64(val)
-			}
-		}
-	}
-
-	if envRestore := os.Getenv("RESTORE"); envRestore != "" {
-		switch envRestore {
-		case "true":
-			cfg.Restore = true
-
-		case "false":
-			cfg.Restore = false
-		}
-	}
-}
 
 type MemStorageMuxLongTerm struct {
 	store       *memstorage.MemStorage
