@@ -1,4 +1,4 @@
-// Package httpgzip - middleware for compress/decompress http request/response
+// Package httpaes - middleware for decrypt  http data AES
 package httpaes
 
 import (
@@ -20,10 +20,16 @@ type aesReader struct {
 
 func NewAesReader(r io.ReadCloser, privateKeyLoaded *rsa.PrivateKey, aesSkey string) (*aesReader, error) {
 	key, err := hex.DecodeString(aesSkey)
+	if err != nil {
+		return nil, err
+	}
+
 	decryptedKey, err := rsa.DecryptPKCS1v15(rand.Reader, privateKeyLoaded, key)
+	if err != nil {
+		return nil, err
+	}
 
 	zr, err := aescoder.NewReader(r, decryptedKey)
-
 	if err != nil {
 		return nil, err
 	}
