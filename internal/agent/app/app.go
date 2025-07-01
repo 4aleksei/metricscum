@@ -63,7 +63,7 @@ func SetupFX() *fx.App {
 		fx.StopTimeout(1*time.Minute),
 		fx.Provide(
 			logger.NewLogger,
-			config.GetConfig,
+			config.NewConfig,
 			httpprof.NewHTTPprof,
 			fx.Annotate(memstoragemux.NewStoreMux,
 				fx.As(new(service.AgentMetricsStorage))),

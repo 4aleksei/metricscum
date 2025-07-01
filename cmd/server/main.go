@@ -45,7 +45,7 @@ func main() {
 }
 
 func run() error {
-	cfg, err := config.GetConfig()
+	cfg, err := config.NewConfig()
 	if err != nil {
 		return err
 	}

@@ -99,7 +99,7 @@ func readConfigEnvRep(cfg *repository.Config) {
 	}
 }
 
-func GetConfig() (*Config, error) {
+func NewConfig() (*Config, error) {
 	cfg := initDefaultCfg()
 
 	dnhelp := getJsonFileName("-c", cfg)

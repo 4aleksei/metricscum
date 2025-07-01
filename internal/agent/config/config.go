@@ -70,7 +70,7 @@ func getJsonFileName(key string, cfg *Config) bool {
 	return true
 }
 
-func GetConfig(l *logger.Logger) (*Config, error) {
+func NewConfig(l *logger.Logger) (*Config, error) {
 	cfg := initDefaultCfg()
 
 	dnhelp := getJsonFileName("-c", cfg)
@@ -143,6 +143,5 @@ func GetConfig(l *logger.Logger) (*Config, error) {
 	if cfg.RateLimit <= 0 {
 		cfg.RateLimit = 1
 	}
-
 	return cfg, nil
 }
