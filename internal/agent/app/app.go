@@ -2,7 +2,12 @@
 package app
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/4aleksei/metricscum/internal/agent/config"
 	"github.com/4aleksei/metricscum/internal/agent/gather"
@@ -27,6 +32,18 @@ func registerRunnersGather(gg *gather.AppGather, lc fx.Lifecycle) {
 	lc.Append(utils.ToHook(gg))
 }
 
+func registerShutdowner(shutdowner fx.Shutdowner, ll *logger.Logger) {
+	go func() {
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGQUIT)
+		sig := <-sigs
+		ll.L.Info("Receive signal", zap.String("signal", sig.String()))
+		if err := shutdowner.Shutdown(); err != nil {
+			ll.L.Debug("encountered error trying to shutdown app: ", zap.Error(err))
+		}
+	}()
+}
+
 func registerRunnersGatherps(gg *gatherps.AppGatherMem, lc fx.Lifecycle) {
 	lc.Append(utils.ToHook(gg))
 }
@@ -46,7 +63,7 @@ func SetupFX() *fx.App {
 		fx.StopTimeout(1*time.Minute),
 		fx.Provide(
 			logger.NewLogger,
-			config.GetConfig,
+			config.NewConfig,
 			httpprof.NewHTTPprof,
 			fx.Annotate(memstoragemux.NewStoreMux,
 				fx.As(new(service.AgentMetricsStorage))),
@@ -66,6 +83,7 @@ func SetupFX() *fx.App {
 			registerRunnersSender,
 			registerRunnersGather,
 			registerRunnersGatherps,
+			registerShutdowner,
 		),
 	)
 	return app

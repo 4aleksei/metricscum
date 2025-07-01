@@ -1,0 +1,8 @@
+{
+	    "address": "localhost:8280", 
+	    "restore": true, 
+	    "store_interval": "20s",
+	    "store_file": "file.db", 
+	    "database_dsn": "postgresql://localhost/dbname?user=metrics&password=metricspassword",
+	    "crypto_key": "/path/to/key.pem"
+}

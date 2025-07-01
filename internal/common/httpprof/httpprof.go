@@ -1,3 +1,4 @@
+// Package httpprof
 package httpprof
 
 import (
@@ -31,6 +32,7 @@ func NewHTTPprof() *HTTPprof {
 func (h *HTTPprof) Start(ctx context.Context) error {
 	go func() {
 		defer h.httpServerExitDone.Done()
+		h.httpServerExitDone.Add(1)
 		if err := h.srv.ListenAndServe(); err != http.ErrServerClosed {
 			return
 		}

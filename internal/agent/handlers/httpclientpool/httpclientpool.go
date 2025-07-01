@@ -3,7 +3,9 @@ package httpclientpool
 
 import (
 	"context"
+	"crypto/rsa"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -18,6 +20,7 @@ import (
 	"compress/gzip"
 	"encoding/hex"
 
+	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool/httpaes"
 	"github.com/4aleksei/metricscum/internal/common/middleware/hmacsha256"
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/utils"
@@ -40,13 +43,15 @@ type (
 		cfg         *config.Config
 		clients     []clientInstance
 		WorkerCount int
+		publicKey   *rsa.PublicKey
 	}
 	functioExec func(context.Context, *sync.WaitGroup, *http.Client,
-		<-chan job.Job, chan<- job.Result, *config.Config)
+		<-chan job.Job, chan<- job.Result, *config.Config, *rsa.PublicKey)
 	clientInstance struct {
-		execFn functioExec
-		client *http.Client
-		cfg    *config.Config
+		execFn    functioExec
+		client    *http.Client
+		cfg       *config.Config
+		publicKey *rsa.PublicKey
 	}
 )
 
@@ -55,20 +60,29 @@ func NewHandler(cfg *config.Config) *PoolHandler {
 	p.WorkerCount = int(cfg.RateLimit)
 	p.clients = make([]clientInstance, p.WorkerCount)
 	p.cfg = cfg
-	for i := 0; i < p.WorkerCount; i++ {
-		p.clients[i] = *newClientInstance(cfg)
+
+	if cfg.PublicKeyFile != "" {
+		pub, err := httpaes.LoadPublicKey(cfg.PublicKeyFile)
+		if err != nil {
+			fmt.Println("Error load public key")
+		} else {
+			p.publicKey = pub
+
+		}
 	}
+
 	for i := 0; i < p.WorkerCount; i++ {
-		p.clients[i] = *newClientInstance(cfg)
+		p.clients[i] = *newClientInstance(cfg, p.publicKey)
 	}
 	return p
 }
 
-func newClientInstance(cfg *config.Config) *clientInstance {
+func newClientInstance(cfg *config.Config, p *rsa.PublicKey) *clientInstance {
 	return &clientInstance{
-		execFn: poolOptions(cfg),
-		client: newClient(),
-		cfg:    cfg,
+		execFn:    poolOptions(cfg),
+		client:    newClient(),
+		cfg:       cfg,
+		publicKey: p,
 	}
 }
 
@@ -97,7 +111,7 @@ func newClient() *http.Client {
 }
 
 func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
-	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config) {
+	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config, pub *rsa.PublicKey) {
 	defer wg.Done()
 	server := "http://" + cfg.Address + "/updates/"
 	for j := range jobs {
@@ -106,7 +120,7 @@ func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *http.Clien
 			return
 		default:
 
-			err := jsonModelSFunc(ctx, server, client, j.Value, cfg.Key)
+			err := jsonModelSFunc(ctx, server, client, j.Value, cfg.Key, pub)
 			if err != nil && errors.Is(err, context.Canceled) {
 				return
 			}
@@ -120,7 +134,7 @@ func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *http.Clien
 }
 
 func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
-	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config) {
+	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config, pub *rsa.PublicKey) {
 	defer wg.Done()
 	server := "http://" + cfg.Address + "/update/"
 	for j := range jobs {
@@ -128,7 +142,7 @@ func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 		case <-ctx.Done():
 			return
 		default:
-			err := jsonModelFunc(ctx, server, client, &j.Value[0], cfg.Key)
+			err := jsonModelFunc(ctx, server, client, &j.Value[0], cfg.Key, pub)
 			if err != nil && errors.Is(err, context.Canceled) {
 				return
 			}
@@ -142,7 +156,7 @@ func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 }
 
 func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
-	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config) {
+	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config, pub *rsa.PublicKey) {
 	defer wg.Done()
 	server := "http://" + cfg.Address + "/update/"
 	for j := range jobs {
@@ -167,7 +181,7 @@ func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 func (p *PoolHandler) StartPool(ctx context.Context, jobs chan job.Job, results chan job.Result, wg *sync.WaitGroup) {
 	for i := 0; i < p.WorkerCount; i++ {
 		wg.Add(1)
-		go p.clients[i].execFn(ctx, wg, p.clients[i].client, jobs, results, p.cfg)
+		go p.clients[i].execFn(ctx, wg, p.clients[i].client, jobs, results, p.cfg, p.clients[i].publicKey)
 	}
 }
 
@@ -181,9 +195,9 @@ func plainTxtFunc(ctx context.Context, client *http.Client, server, data string)
 	return nil
 }
 
-func jsonModelFunc(ctx context.Context, server string, client *http.Client, data *models.Metrics, cfgkey string) error {
+func jsonModelFunc(ctx context.Context, server string, client *http.Client, data *models.Metrics, cfgkey string, pub *rsa.PublicKey) error {
 	var requestBody bytes.Buffer
-
+	var aeskey string
 	var key string
 	var twr io.Writer
 
@@ -195,6 +209,16 @@ func jsonModelFunc(ctx context.Context, server string, client *http.Client, data
 	} else {
 		twr = gz
 	}
+
+	if pub != nil {
+		aestwr, err := httpaes.NewWriter(twr, pub)
+		if err != nil {
+			return err
+		}
+		twr = aestwr
+		aeskey = aestwr.GetKey()
+	}
+
 	err := data.JSONEncodeBytes(twr)
 	if err != nil {
 		return err
@@ -206,26 +230,37 @@ func jsonModelFunc(ctx context.Context, server string, client *http.Client, data
 	}
 
 	err = utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
-		return newJPostReq(ctx, client, server, &requestBody, key)
+		return newJPostReq(ctx, client, server, &requestBody, key, aeskey)
 	})
 	if err != nil {
 		return err
 	}
 	return nil
 }
-func jsonModelSFunc(ctx context.Context, server string, client *http.Client, data []models.Metrics, cfgkey string) error {
+func jsonModelSFunc(ctx context.Context, server string, client *http.Client, data []models.Metrics, cfgkey string, pub *rsa.PublicKey) error {
 	var requestBody bytes.Buffer
 	var key string
 	var twr io.Writer
+	var aeskey string
 	gz := gzip.NewWriter(&requestBody)
 	var hmac *hmacsha256.HmacWriter
 
 	if cfgkey != "" {
-		hmac = hmacsha256.NewWriter(twr, []byte(cfgkey))
+		hmac = hmacsha256.NewWriter(gz, []byte(cfgkey))
 		twr = hmac
 	} else {
 		twr = gz
 	}
+
+	if pub != nil {
+		aestwr, err := httpaes.NewWriter(twr, pub)
+		if err != nil {
+			return err
+		}
+		twr = aestwr
+		aeskey = aestwr.GetKey()
+	}
+
 	err := models.JSONSEncodeBytes(twr, data)
 	if err != nil {
 		return err
@@ -237,7 +272,7 @@ func jsonModelSFunc(ctx context.Context, server string, client *http.Client, dat
 	}
 
 	err = utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
-		return newJPostReq(ctx, client, server, &requestBody, key)
+		return newJPostReq(ctx, client, server, &requestBody, key, aeskey)
 	})
 	if err != nil {
 		return err
@@ -264,7 +299,7 @@ func newPPostReq(ctx context.Context, client *http.Client, server string, reques
 	return nil
 }
 
-func newJPostReq(ctx context.Context, client *http.Client, server string, requestBody io.Reader, key string) error {
+func newJPostReq(ctx context.Context, client *http.Client, server string, requestBody io.Reader, key string, aeskey string) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", server, requestBody)
 	if err != nil {
 		return err
@@ -272,6 +307,10 @@ func newJPostReq(ctx context.Context, client *http.Client, server string, reques
 
 	if key != "" {
 		req.Header.Set("HashSHA256", key)
+	}
+
+	if aeskey != "" {
+		req.Header.Set("AES-256", aeskey)
 	}
 
 	req.Header.Set("Accept-Encoding", gzipContent)

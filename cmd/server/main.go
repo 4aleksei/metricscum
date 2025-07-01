@@ -45,7 +45,11 @@ func main() {
 }
 
 func run() error {
-	cfg := config.GetConfig()
+	cfg, err := config.NewConfig()
+	if err != nil {
+		return err
+	}
+
 	l, err := logger.NewLog(cfg.Level)
 	if err != nil {
 		return err
@@ -71,7 +75,7 @@ func run() error {
 	server.Serve()
 
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	sig := <-sigs
 
 	l.Info("Server is shutting down...", zap.String("signal", sig.String()))
