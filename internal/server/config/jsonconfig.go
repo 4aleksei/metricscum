@@ -8,7 +8,9 @@ import (
 	"time"
 )
 
-type Duration time.Duration
+type (
+	Duration time.Duration
+)
 
 func (d Duration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.String())
@@ -31,6 +33,8 @@ func (d Duration) String() string {
 type Jsonconfig struct {
 	Restore       *bool     `json:"restore,omitempty"`
 	StoreInterval *Duration `json:"store_interval,omitempty"`
+
+	Ncidr *string `json:"trusted_subnet,omitempty"`
 
 	DatabaseDsn *string `json:"database_dsn,omitempty"`
 
@@ -77,6 +81,10 @@ func loadConfigJson(name string, cfg *Config) error {
 
 	if jsonconfig.Address != nil {
 		cfg.Address = *jsonconfig.Address
+	}
+
+	if jsonconfig.Ncidr != nil {
+		cfg.Cidr = *jsonconfig.Ncidr
 	}
 
 	if jsonconfig.StoreFile != nil {

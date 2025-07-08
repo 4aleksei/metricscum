@@ -20,6 +20,7 @@ type Config struct {
 	Repcfg         repository.Config
 	PrivateKeyFile string
 	ConfigJsonFile string
+	Cidr           string
 }
 
 const (
@@ -32,6 +33,7 @@ const (
 	WriteIntervalDefault  int64  = 300
 	RestoreDefault        bool   = true
 	PrivateKeyFileDefault string = ""
+	CidrDefault                  = ""
 )
 
 func initDefaultCfg() *Config {
@@ -45,6 +47,7 @@ func initDefaultCfg() *Config {
 	cfg.Repcfg.Interval = WriteIntervalDefault
 	cfg.ConfigJsonFile = ConfigDefaultJson
 	cfg.PrivateKeyFile = PrivateKeyFileDefault
+	cfg.Cidr = CidrDefault
 	return cfg
 }
 
@@ -115,6 +118,8 @@ func NewConfig() (*Config, error) {
 	}
 	flag.StringVar(&cfg.ConfigJsonFile, "c", cfg.ConfigJsonFile, "Config file name in json format")
 
+	flag.StringVar(&cfg.Cidr, "t", cfg.Cidr, "Trusted subnet (CIDR)")
+
 	flag.StringVar(&cfg.Address, "a", cfg.Address, "address and port to run server")
 
 	flag.StringVar(&cfg.Level, "v", cfg.Level, "level of logging")
@@ -140,6 +145,10 @@ func NewConfig() (*Config, error) {
 
 	if envPrivateKeyFile := os.Getenv("CRYPTO_KEY"); envPrivateKeyFile != "" {
 		cfg.PrivateKeyFile = envPrivateKeyFile
+	}
+
+	if envTrustNet := os.Getenv("TRUSTED_SUBNET"); envTrustNet != "" {
+		cfg.Cidr = envTrustNet
 	}
 
 	readConfigEnvRep(&cfg.Repcfg)

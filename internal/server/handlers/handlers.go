@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -29,12 +30,13 @@ import (
 
 type (
 	HandlersServer struct {
-		store      *service.HandlerStore
-		cfg        *config.Config
-		Srv        *http.Server
-		l          *zap.Logger
-		key        string
-		privateKey *rsa.PrivateKey
+		store       *service.HandlerStore
+		cfg         *config.Config
+		Srv         *http.Server
+		l           *zap.Logger
+		key         string
+		privateKey  *rsa.PrivateKey
+		trustedCidr *net.IPNet
 	}
 )
 
@@ -43,21 +45,29 @@ const (
 	applicationJSONContent string = "application/json"
 )
 
-// NewHandlers - server constructor
+// NewServer - server constructor
 // store : store object
 // cfg : config
 // l :  logger realization
-func NewHandlers(store *service.HandlerStore, cfg *config.Config, l *zap.Logger) *HandlersServer {
+func NewServer(store *service.HandlerStore, cfg *config.Config, l *zap.Logger) (*HandlersServer, error) {
 	h := new(HandlersServer)
 	h.store = store
 	h.cfg = cfg
 	h.key = h.cfg.Key
 	h.l = l
+	if cfg.Cidr != "" {
+		var err error
+		_, h.trustedCidr, err = net.ParseCIDR(cfg.Cidr)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	if h.cfg.PrivateKeyFile != "" {
 		pKey, err := httpaes.LoadKey(h.cfg.PrivateKeyFile)
 		if err != nil {
 			h.l.Debug("HTTP server Load private key error: ", zap.Error(err))
+			return nil, err
 		} else {
 			h.privateKey = pKey
 		}
@@ -68,7 +78,7 @@ func NewHandlers(store *service.HandlerStore, cfg *config.Config, l *zap.Logger)
 		Handler:           h.newRouter(),
 		ReadHeaderTimeout: 2 * time.Second,
 	}
-	return h
+	return h, nil
 }
 
 func (h *HandlersServer) withLogging(next http.Handler) http.Handler {
@@ -86,6 +96,7 @@ func (h *HandlersServer) withLogging(next http.Handler) http.Handler {
 			zap.String("ContentEnc", r.Header.Get("Content-Encoding")),
 			zap.String("Accept", r.Header.Get("Accept")),
 			zap.String("AES-256", r.Header.Get("AES-256")),
+			zap.String("X-Real-IP", r.Header.Get("X-Real-IP")),
 			zap.String("ContentType", r.Header.Get("Content-Type")),
 			zap.Duration("duration", duration),
 			zap.Int("resp_status", responseData.GetStatus()),
@@ -160,10 +171,40 @@ func (h *HandlersServer) hmacsha256Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(hmacsha256fn)
 }
 
+func (h *HandlersServer) trustedCIDRMiddleware(next http.Handler) http.Handler {
+	checkfn := func(w http.ResponseWriter, r *http.Request) {
+
+		realIP := r.Header.Get("X-Real-IP")
+		if realIP == "" {
+			realIP = r.RemoteAddr
+		}
+
+		ip := net.ParseIP(realIP)
+
+		if ip == nil {
+			h.l.Debug("cannot parse ip address")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		con := h.trustedCidr.Contains(ip)
+		if !con {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+	return http.HandlerFunc(checkfn)
+}
+
 func (h *HandlersServer) newRouter() http.Handler {
 	mux := chi.NewRouter()
 
 	mux.Use(h.withLogging)
+
+	if h.trustedCidr != nil {
+		mux.Use(h.trustedCIDRMiddleware)
+	}
 
 	if h.privateKey != nil {
 		mux.Use(h.aesMiddleware)

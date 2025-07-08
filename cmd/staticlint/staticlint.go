@@ -22,26 +22,11 @@
 package main
 
 import (
-	"fmt"
-
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 )
 
-var (
-	buildVersion string = "N/A"
-	buildDate    string = "N/A"
-	buildCommit  string = "N/A"
-)
-
-func printVersion() {
-	fmt.Println("Build version: ", buildVersion)
-	fmt.Println("Build date: ", buildDate)
-	fmt.Println("Build commit: ", buildCommit)
-}
-
 func main() {
-	printVersion()
 	var mychecks []*analysis.Analyzer
 	mychecks = multi(mychecks)
 

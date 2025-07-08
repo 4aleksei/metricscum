@@ -65,12 +65,16 @@ func run() error {
 
 	storageRes, errC := resources.CreateResouces(cfg, l)
 	if errC != nil {
-		l.Error("Error cretae resources :", zap.Error(errC))
+		l.Error("Error create resources :", zap.Error(errC))
 		return errC
 	}
 
 	metricsService := service.NewHandlerStore(storageRes.Store)
-	server := handlers.NewHandlers(metricsService, cfg, l)
+	server, errS := handlers.NewServer(metricsService, cfg, l)
+	if errS != nil {
+		l.Error("Error server construct:", zap.Error(errS))
+		return errS
+	}
 
 	server.Serve()
 
