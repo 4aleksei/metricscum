@@ -55,6 +55,7 @@ func NewServer(store *service.HandlerStore, cfg *config.Config, l *zap.Logger) (
 	h.cfg = cfg
 	h.key = h.cfg.Key
 	h.l = l
+
 	if cfg.Cidr != "" {
 		var err error
 		_, h.trustedCidr, err = net.ParseCIDR(cfg.Cidr)
@@ -201,6 +202,7 @@ func (h *HandlersServer) newRouter() http.Handler {
 	mux := chi.NewRouter()
 
 	mux.Use(h.withLogging)
+
 
 	if h.trustedCidr != nil {
 		mux.Use(h.trustedCIDRMiddleware)

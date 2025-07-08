@@ -8,9 +8,11 @@ import (
 	"time"
 )
 
+
 type (
 	Duration time.Duration
 )
+
 
 func (d Duration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.String())
@@ -83,9 +85,11 @@ func loadConfigJson(name string, cfg *Config) error {
 		cfg.Address = *jsonconfig.Address
 	}
 
+
 	if jsonconfig.Ncidr != nil {
 		cfg.Cidr = *jsonconfig.Ncidr
 	}
+
 
 	if jsonconfig.StoreFile != nil {
 		cfg.FilePath = *jsonconfig.StoreFile

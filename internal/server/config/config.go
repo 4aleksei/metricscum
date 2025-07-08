@@ -21,6 +21,7 @@ type Config struct {
 	PrivateKeyFile string
 	ConfigJsonFile string
 	Cidr           string
+
 }
 
 const (
@@ -48,6 +49,7 @@ func initDefaultCfg() *Config {
 	cfg.ConfigJsonFile = ConfigDefaultJson
 	cfg.PrivateKeyFile = PrivateKeyFileDefault
 	cfg.Cidr = CidrDefault
+
 	return cfg
 }
 
@@ -102,6 +104,7 @@ func readConfigEnvRep(cfg *repository.Config) {
 	}
 }
 
+
 func NewConfig() (*Config, error) {
 	cfg := initDefaultCfg()
 
@@ -119,6 +122,7 @@ func NewConfig() (*Config, error) {
 	flag.StringVar(&cfg.ConfigJsonFile, "c", cfg.ConfigJsonFile, "Config file name in json format")
 
 	flag.StringVar(&cfg.Cidr, "t", cfg.Cidr, "Trusted subnet (CIDR)")
+
 
 	flag.StringVar(&cfg.Address, "a", cfg.Address, "address and port to run server")
 
@@ -147,9 +151,11 @@ func NewConfig() (*Config, error) {
 		cfg.PrivateKeyFile = envPrivateKeyFile
 	}
 
+
 	if envTrustNet := os.Getenv("TRUSTED_SUBNET"); envTrustNet != "" {
 		cfg.Cidr = envTrustNet
 	}
+
 
 	readConfigEnvRep(&cfg.Repcfg)
 	readConfigEnvPg(&cfg.DBcfg)

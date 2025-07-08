@@ -45,6 +45,7 @@ type (
 		WorkerCount int
 		publicKey   *rsa.PublicKey
 	}
+
 	functioExec func(context.Context, *sync.WaitGroup, *agentClient,
 		<-chan job.Job, chan<- job.Result, *config.Config, *rsa.PublicKey)
 	clientInstance struct {
@@ -57,6 +58,7 @@ type (
 	agentClient struct {
 		client    *http.Client
 		localAddr string
+
 	}
 )
 
@@ -126,7 +128,9 @@ func newClient() *agentClient {
 	return agclient
 }
 
+
 func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *agentClient,
+
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config, pub *rsa.PublicKey) {
 	defer wg.Done()
 	server := "http://" + cfg.Address + "/updates/"
@@ -149,6 +153,7 @@ func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *agentClien
 	}
 }
 
+
 func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *agentClient,
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config, pub *rsa.PublicKey) {
 	defer wg.Done()
@@ -170,6 +175,7 @@ func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *agentClient,
 		}
 	}
 }
+
 
 func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *agentClient,
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config, pub *rsa.PublicKey) {
@@ -210,6 +216,7 @@ func plainTxtFunc(ctx context.Context, client *agentClient, server, data string)
 	}
 	return nil
 }
+
 
 func jsonModelFunc(ctx context.Context, server string, client *agentClient, data *models.Metrics, cfgkey string, pub *rsa.PublicKey) error {
 	var requestBody bytes.Buffer
@@ -253,6 +260,7 @@ func jsonModelFunc(ctx context.Context, server string, client *agentClient, data
 	}
 	return nil
 }
+
 func jsonModelSFunc(ctx context.Context, server string, client *agentClient, data []models.Metrics, cfgkey string, pub *rsa.PublicKey) error {
 	var requestBody bytes.Buffer
 	var key string
@@ -321,6 +329,7 @@ func newPPostReq(ctx context.Context, client *agentClient, server string, reques
 	return nil
 }
 
+
 func newJPostReq(ctx context.Context, client *agentClient, server string, requestBody io.Reader, key string, aeskey string) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", server, requestBody)
 
@@ -335,9 +344,11 @@ func newJPostReq(ctx context.Context, client *agentClient, server string, reques
 	if aeskey != "" {
 		req.Header.Set("AES-256", aeskey)
 	}
+
 	if client.localAddr != "" {
 		req.Header.Set("X-Real-IP", client.localAddr)
 	}
+
 
 	req.Header.Set("Accept-Encoding", gzipContent)
 	req.Header.Set("Content-Encoding", gzipContent)
