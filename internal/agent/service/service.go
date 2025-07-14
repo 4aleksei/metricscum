@@ -5,14 +5,13 @@ import (
 	"context"
 	"sync"
 
+	"github.com/4aleksei/metricscum/internal/agent/config"
+	"github.com/4aleksei/metricscum/internal/agent/poolclients"
+	"github.com/4aleksei/metricscum/internal/common/job"
 	"github.com/4aleksei/metricscum/internal/common/logger"
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
-
-	"github.com/4aleksei/metricscum/internal/agent/config"
-	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool"
-	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool/job"
 	"go.uber.org/zap"
 )
 
@@ -24,13 +23,13 @@ type AgentMetricsStorage interface {
 
 type HandlerStore struct {
 	store AgentMetricsStorage
-	pool  *httpclientpool.PoolHandler
+	pool  *poolclients.PoolClient //*httpclientpool.PoolHandler
 	cfg   *config.Config
 	l     *logger.Logger
 	jid   job.JobID
 }
 
-func NewHandlerStore(store AgentMetricsStorage, pool *httpclientpool.PoolHandler, cfg *config.Config, l *logger.Logger) *HandlerStore {
+func NewHandlerStore(store AgentMetricsStorage, pool *poolclients.PoolClient, cfg *config.Config, l *logger.Logger) *HandlerStore {
 	return &HandlerStore{
 		store: store,
 		pool:  pool,
@@ -134,6 +133,11 @@ func (h *HandlerStore) sendMetricsRun(ctx context.Context, jobs chan job.Job, re
 			h.l.L.Debug("SendedJob:", zap.Int("batch_len", b), zap.Int64("id", int64(id)))
 		}
 	}
+}
+
+func (h *HandlerStore) GracefulStop() {
+
+	h.pool.GracefulStop()
 }
 
 func (h *HandlerStore) startSendMetricsRun(ctx context.Context, resmodelsTX []models.Metrics,

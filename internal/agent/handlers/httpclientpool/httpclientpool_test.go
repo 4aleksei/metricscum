@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/4aleksei/metricscum/internal/agent/config"
-	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool/job"
+	"github.com/4aleksei/metricscum/internal/common/job"
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/stretchr/testify/assert"
 )

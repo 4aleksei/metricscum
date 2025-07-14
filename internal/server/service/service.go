@@ -136,6 +136,14 @@ func (h *HandlerStore) GetAllStore(ctx context.Context) (string, error) {
 	return valstr, nil
 }
 
+func (h *HandlerStore) GetAllStoreValue(ctx context.Context, f func(string, valuemetric.ValueMetric) error) error {
+	err := h.store.ReadAll(ctx, f)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (h *HandlerStore) GetPingDB(ctx context.Context) error {
 	return h.store.PingContext(ctx)
 }

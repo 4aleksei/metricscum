@@ -13,12 +13,12 @@ import (
 	"net"
 	"time"
 
-	"github.com/4aleksei/metricscum/internal/agent/config"
-	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool/job"
-
 	"bytes"
 	"compress/gzip"
 	"encoding/hex"
+
+	"github.com/4aleksei/metricscum/internal/agent/config"
+	"github.com/4aleksei/metricscum/internal/common/job"
 
 	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool/httpaes"
 	"github.com/4aleksei/metricscum/internal/common/middleware/hmacsha256"
@@ -58,7 +58,6 @@ type (
 	agentClient struct {
 		client    *http.Client
 		localAddr string
-
 	}
 )
 
@@ -128,7 +127,6 @@ func newClient() *agentClient {
 	return agclient
 }
 
-
 func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *agentClient,
 
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config, pub *rsa.PublicKey) {
@@ -153,7 +151,6 @@ func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *agentClien
 	}
 }
 
-
 func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *agentClient,
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config, pub *rsa.PublicKey) {
 	defer wg.Done()
@@ -175,7 +172,6 @@ func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *agentClient,
 		}
 	}
 }
-
 
 func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *agentClient,
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config, pub *rsa.PublicKey) {
@@ -200,6 +196,12 @@ func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *agentClient,
 	}
 }
 
+func (p *PoolHandler) GracefulStop() {
+	for _, v := range p.clients {
+		v.client.client.CloseIdleConnections()
+	}
+}
+
 func (p *PoolHandler) StartPool(ctx context.Context, jobs chan job.Job, results chan job.Result, wg *sync.WaitGroup) {
 	for i := 0; i < p.WorkerCount; i++ {
 		wg.Add(1)
@@ -216,7 +218,6 @@ func plainTxtFunc(ctx context.Context, client *agentClient, server, data string)
 	}
 	return nil
 }
-
 
 func jsonModelFunc(ctx context.Context, server string, client *agentClient, data *models.Metrics, cfgkey string, pub *rsa.PublicKey) error {
 	var requestBody bytes.Buffer
@@ -329,7 +330,6 @@ func newPPostReq(ctx context.Context, client *agentClient, server string, reques
 	return nil
 }
 
-
 func newJPostReq(ctx context.Context, client *agentClient, server string, requestBody io.Reader, key string, aeskey string) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", server, requestBody)
 
@@ -348,7 +348,6 @@ func newJPostReq(ctx context.Context, client *agentClient, server string, reques
 	if client.localAddr != "" {
 		req.Header.Set("X-Real-IP", client.localAddr)
 	}
-
 
 	req.Header.Set("Accept-Encoding", gzipContent)
 	req.Header.Set("Content-Encoding", gzipContent)

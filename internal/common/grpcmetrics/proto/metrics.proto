@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package grpcmetrics;
+
+option go_package = "github.com/4aleksei/metricscum/internal/common/grpcmetrics";
+
+message Metric {
+     string name = 1;  // имя метрики
+    enum Type {
+      UNSPECIFIED = 0;
+      COUNTER = 1;
+      GAUGE = 2;
+  }
+  Type type = 2;      // тип метрики
+  int64 counter = 3;
+  double gauge = 4;  
+}
+
+
+message Response {
+   Metric value = 1;
+}
+
+message Request {
+   Metric value = 1;
+}
+
+
+message MultiUpdate {
+  repeated Metric values = 1;
+}
+
+message RequestMetrics {
+}
+
+message MultiResponse {
+  repeated Metric values = 1;
+}
+
+
+message RequestPing {
+}
+message ResposePing {
+}
+
+
+service StreamMultiService {
+  rpc UpdateRequest (Request) returns ( Response);
+  rpc MultiUpdateRequest ( MultiUpdate ) returns (MultiResponse);
+  
+  rpc GetMetric (Request) returns (Response);
+  rpc GetMetrics (RequestMetrics) returns (stream Metric);
+}

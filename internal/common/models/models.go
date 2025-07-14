@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 
+	pb "github.com/4aleksei/metricscum/internal/common/grpcmetrics/proto"
 	"github.com/4aleksei/metricscum/internal/common/repository/valuemetric"
 )
 
@@ -15,6 +16,18 @@ type Metrics struct {
 	Value *float64 `json:"value,omitempty"`
 	ID    string   `json:"id"`
 	MType string   `json:"type"`
+}
+
+func (valModels *Metrics) ConvertToModel(val *pb.Metric) error {
+	k, _ := valuemetric.GetKindInt(int(val.GetType()))
+	delta := val.GetCounter()
+	value := val.GetGauge()
+	resp, err := valuemetric.ConvertToValueMetricInt(k, &delta, &value)
+	if err != nil {
+		return err
+	}
+	valModels.ConvertMetricToModel(val.GetName(), *resp)
+	return nil
 }
 
 func (valModels *Metrics) ConvertMetricToModel(name string, valMetrics valuemetric.ValueMetric) {

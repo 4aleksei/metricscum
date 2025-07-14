@@ -8,11 +8,9 @@ import (
 	"time"
 )
 
-
 type (
 	Duration time.Duration
 )
-
 
 func (d Duration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.String())
@@ -41,10 +39,13 @@ type Jsonconfig struct {
 	DatabaseDsn *string `json:"database_dsn,omitempty"`
 
 	Address   *string `json:"address,omitempty"`
+	Grcp      *string `json:"grcp,omitempty"`
 	StoreFile *string `json:"store_file,omitempty"`
 	CryptoKey *string `json:"crypto_key,omitempty"`
 	Key       *string `json:"key,omitempty"`
 	Level     *string `json:"level,omitempty"`
+
+	CryptoCert *string `json:"crypto_cert,omitempty"`
 }
 
 func jsonConfigDecode(body io.ReadCloser) (*Jsonconfig, error) {
@@ -85,11 +86,9 @@ func loadConfigJson(name string, cfg *Config) error {
 		cfg.Address = *jsonconfig.Address
 	}
 
-
 	if jsonconfig.Ncidr != nil {
 		cfg.Cidr = *jsonconfig.Ncidr
 	}
-
 
 	if jsonconfig.StoreFile != nil {
 		cfg.FilePath = *jsonconfig.StoreFile
@@ -106,5 +105,14 @@ func loadConfigJson(name string, cfg *Config) error {
 	if jsonconfig.Level != nil {
 		cfg.Level = *jsonconfig.Level
 	}
+
+	if jsonconfig.Grcp != nil {
+		cfg.Grcp = *jsonconfig.Grcp
+	}
+
+	if jsonconfig.CryptoCert != nil {
+		cfg.PrivateCertFile = *jsonconfig.CryptoCert
+	}
+
 	return nil
 }

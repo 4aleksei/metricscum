@@ -12,29 +12,32 @@ import (
 )
 
 type Config struct {
-	Address        string
-	Level          string
-	FilePath       string
-	DBcfg          pg.Config
-	Key            string
-	Repcfg         repository.Config
-	PrivateKeyFile string
-	ConfigJsonFile string
-	Cidr           string
-
+	Address         string
+	Level           string
+	FilePath        string
+	DBcfg           pg.Config
+	Key             string
+	Repcfg          repository.Config
+	PrivateKeyFile  string
+	ConfigJsonFile  string
+	Cidr            string
+	Grcp            string
+	PrivateCertFile string
 }
 
 const (
-	AddressDefault        string = ":8080"
-	LevelDefault          string = "debug"
-	FilePathDefault       string = "./data.store"
-	databaseDSNDefault    string = ""
-	KeyDefault            string = ""
-	ConfigDefaultJson     string = ""
-	WriteIntervalDefault  int64  = 300
-	RestoreDefault        bool   = true
-	PrivateKeyFileDefault string = ""
-	CidrDefault                  = ""
+	AddressDefault         string = ":8080"
+	GrcpAddressDefault     string = ":8081"
+	LevelDefault           string = "debug"
+	FilePathDefault        string = "./data.store"
+	databaseDSNDefault     string = ""
+	KeyDefault             string = ""
+	ConfigDefaultJson      string = ""
+	WriteIntervalDefault   int64  = 300
+	RestoreDefault         bool   = true
+	PrivateKeyFileDefault  string = ""
+	CidrDefault                   = ""
+	PrivateCertFileDefault string = ""
 )
 
 func initDefaultCfg() *Config {
@@ -49,7 +52,8 @@ func initDefaultCfg() *Config {
 	cfg.ConfigJsonFile = ConfigDefaultJson
 	cfg.PrivateKeyFile = PrivateKeyFileDefault
 	cfg.Cidr = CidrDefault
-
+	cfg.Grcp = GrcpAddressDefault
+	cfg.PrivateCertFile = PrivateCertFileDefault
 	return cfg
 }
 
@@ -104,7 +108,6 @@ func readConfigEnvRep(cfg *repository.Config) {
 	}
 }
 
-
 func NewConfig() (*Config, error) {
 	cfg := initDefaultCfg()
 
@@ -123,8 +126,9 @@ func NewConfig() (*Config, error) {
 
 	flag.StringVar(&cfg.Cidr, "t", cfg.Cidr, "Trusted subnet (CIDR)")
 
-
 	flag.StringVar(&cfg.Address, "a", cfg.Address, "address and port to run server")
+
+	flag.StringVar(&cfg.Grcp, "g", cfg.Grcp, "gRCP  port to run server")
 
 	flag.StringVar(&cfg.Level, "v", cfg.Level, "level of logging")
 	flag.StringVar(&cfg.FilePath, "f", cfg.FilePath, "FilePath store")
@@ -134,6 +138,7 @@ func NewConfig() (*Config, error) {
 
 	flag.StringVar(&cfg.Key, "k", cfg.Key, "key for signature")
 	flag.StringVar(&cfg.PrivateKeyFile, "crypto-key", cfg.PrivateKeyFile, "Private key file name (pem)")
+	flag.StringVar(&cfg.PrivateCertFile, "crypto-cert", cfg.PrivateCertFile, "Private cert file name (pem)")
 
 	flag.Parse()
 
@@ -151,11 +156,9 @@ func NewConfig() (*Config, error) {
 		cfg.PrivateKeyFile = envPrivateKeyFile
 	}
 
-
 	if envTrustNet := os.Getenv("TRUSTED_SUBNET"); envTrustNet != "" {
 		cfg.Cidr = envTrustNet
 	}
-
 
 	readConfigEnvRep(&cfg.Repcfg)
 	readConfigEnvPg(&cfg.DBcfg)

@@ -33,12 +33,13 @@ type Jsonconfig struct {
 	ReportInterval *Duration `json:"report_interval,omitempty"`
 	PollInterval   *Duration `json:"poll_interval,omitempty"`
 	PublicKeyFile  *string   `json:"crypto_key,omitempty"`
-
-	Level        *string `json:"level,omitempty"`
-	Key          *string `json:"key,omitempty"`
-	ContentBatch *int64  `json:"content_batch,omitempty"`
-	RateLimit    *int64  `json:"rate_limit,omitempty"`
-	ContentJSON  *bool   `json:"content_json,omitempty"`
+	Level          *string   `json:"level,omitempty"`
+	Key            *string   `json:"key,omitempty"`
+	ContentBatch   *int64    `json:"content_batch,omitempty"`
+	RateLimit      *int64    `json:"rate_limit,omitempty"`
+	ContentJSON    *bool     `json:"content_json,omitempty"`
+	Grpc           *bool     `json:"grpc,omitempty"`
+	CertFile       *string   `json:"crypto_cert,omitempty"`
 }
 
 func jsonConfigDecode(body io.ReadCloser) (*Jsonconfig, error) {
@@ -98,5 +99,14 @@ func loadConfigJson(name string, cfg *Config) error {
 	if jsonconfig.RateLimit != nil {
 		cfg.RateLimit = *jsonconfig.RateLimit
 	}
+
+	if jsonconfig.Grpc != nil {
+		cfg.Grpc = *jsonconfig.Grpc
+	}
+
+	if jsonconfig.CertFile != nil {
+		cfg.CertKeyFile = *jsonconfig.CertFile
+	}
+
 	return nil
 }

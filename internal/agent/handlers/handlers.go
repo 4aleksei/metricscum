@@ -42,6 +42,7 @@ func (app *App) Start(ctx context.Context) error {
 func (app *App) Stop(ctx context.Context) error {
 	app.cancel()
 	app.wg.Wait()
+	app.serv.GracefulStop()
 	return nil
 }
 
