@@ -13,7 +13,7 @@ import (
 	"github.com/4aleksei/metricscum/internal/agent/gather"
 	"github.com/4aleksei/metricscum/internal/agent/gatherps"
 	"github.com/4aleksei/metricscum/internal/agent/handlers"
-	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool"
+	"github.com/4aleksei/metricscum/internal/agent/poolclients"
 	"github.com/4aleksei/metricscum/internal/agent/service"
 	"github.com/4aleksei/metricscum/internal/common/httpprof"
 	"github.com/4aleksei/metricscum/internal/common/logger"
@@ -70,7 +70,8 @@ func SetupFX() *fx.App {
 			service.NewHandlerStore,
 			gather.NewAppGather,
 			gatherps.NewGather,
-			httpclientpool.NewHandler,
+			poolclients.NewPoolClient,
+			//httpclientpool.NewHandler,
 			handlers.NewApp,
 		),
 

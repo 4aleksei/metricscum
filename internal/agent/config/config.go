@@ -23,6 +23,8 @@ type Config struct {
 	RateLimit      int64
 	ContentJSON    bool
 	ConfigJsonFile string
+	Grpc           bool
+	CertKeyFile    string
 }
 
 const (
@@ -36,6 +38,8 @@ const (
 	RateLimitDefault      int64  = 10
 	ConfigDefaultJson     string = ""
 	PublicKeyDefault      string = ""
+	GrpcDefault           bool   = false
+	CertKeyFileDefault    string = ""
 )
 
 func initDefaultCfg() *Config {
@@ -52,6 +56,8 @@ func initDefaultCfg() *Config {
 	cfg.ContentJSON = ContentJSONDefault
 
 	cfg.PublicKeyFile = PublicKeyDefault
+	cfg.Grpc = GrpcDefault
+	cfg.CertKeyFile = CertKeyFileDefault
 	return cfg
 }
 
@@ -92,6 +98,8 @@ func NewConfig(l *logger.Logger) (*Config, error) {
 	flag.Int64Var(&cfg.PollInterval, "p", cfg.PollInterval, "PollInterval")
 	flag.BoolVar(&cfg.ContentJSON, "j", cfg.ContentJSON, "ContentJSON true/false")
 
+	flag.BoolVar(&cfg.Grpc, "g", cfg.Grpc, "gRPC client true/false")
+
 	flag.Int64Var(&cfg.ContentBatch, "b", cfg.ContentBatch, "ContentBatch size uint")
 
 	flag.StringVar(&cfg.Key, "k", cfg.Key, "key for signature")
@@ -99,6 +107,7 @@ func NewConfig(l *logger.Logger) (*Config, error) {
 	flag.Int64Var(&cfg.RateLimit, "l", cfg.RateLimit, "RateLimit, pool workers")
 
 	flag.StringVar(&cfg.PublicKeyFile, "crypto-key", cfg.PublicKeyFile, "Public key file name")
+	flag.StringVar(&cfg.CertKeyFile, "crypto-cert", cfg.CertKeyFile, "Public cert file name")
 
 	flag.Parse()
 

@@ -15,6 +15,7 @@ import (
 	"github.com/4aleksei/metricscum/cmd/server/migrate"
 	"github.com/4aleksei/metricscum/internal/common/logger"
 	"github.com/4aleksei/metricscum/internal/server/config"
+	grpcmetrics "github.com/4aleksei/metricscum/internal/server/grpcservice"
 	"github.com/4aleksei/metricscum/internal/server/handlers"
 	"github.com/4aleksei/metricscum/internal/server/resources"
 	"github.com/4aleksei/metricscum/internal/server/service"
@@ -65,14 +66,24 @@ func run() error {
 
 	storageRes, errC := resources.CreateResouces(cfg, l)
 	if errC != nil {
-		l.Error("Error cretae resources :", zap.Error(errC))
+		l.Error("Error create resources :", zap.Error(errC))
 		return errC
 	}
 
 	metricsService := service.NewHandlerStore(storageRes.Store)
-	server := handlers.NewHandlers(metricsService, cfg, l)
+	server, errS := handlers.NewServer(metricsService, cfg, l)
+	if errS != nil {
+		l.Error("Error server construct:", zap.Error(errS))
+		return errS
+	}
 
 	server.Serve()
+
+	grpcServ, errG := grpcmetrics.NewgPRC(metricsService, cfg, l)
+	if errG != nil {
+		l.Error("Error server grpc construct:", zap.Error(errG))
+		return errG
+	}
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -88,6 +99,8 @@ func run() error {
 	} else {
 		l.Info("Server shutdown complete")
 	}
+
+	grpcServ.StopServ()
 
 	errClose := storageRes.Close(context.Background())
 	if errClose != nil {

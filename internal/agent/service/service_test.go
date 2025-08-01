@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/4aleksei/metricscum/internal/agent/config"
-	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool"
+	"github.com/4aleksei/metricscum/internal/agent/poolclients"
 	"github.com/4aleksei/metricscum/internal/common/logger"
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/4aleksei/metricscum/internal/common/repository/memstorage"
@@ -156,7 +156,7 @@ func Test_SendMetrics(t *testing.T) {
 
 	stor := memstorage.NewStore()
 
-	pool := httpclientpool.NewHandler(cfg)
+	pool := poolclients.NewPoolClient(cfg)
 	lo := logger.NewLogger(logger.Config{Level: "debug"})
 	serV := NewHandlerStore(stor, pool, cfg, lo)
 

@@ -13,12 +13,12 @@ import (
 	"net"
 	"time"
 
-	"github.com/4aleksei/metricscum/internal/agent/config"
-	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool/job"
-
 	"bytes"
 	"compress/gzip"
 	"encoding/hex"
+
+	"github.com/4aleksei/metricscum/internal/agent/config"
+	"github.com/4aleksei/metricscum/internal/common/job"
 
 	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool/httpaes"
 	"github.com/4aleksei/metricscum/internal/common/middleware/hmacsha256"
@@ -45,13 +45,19 @@ type (
 		WorkerCount int
 		publicKey   *rsa.PublicKey
 	}
-	functioExec func(context.Context, *sync.WaitGroup, *http.Client,
+
+	functioExec func(context.Context, *sync.WaitGroup, *agentClient,
 		<-chan job.Job, chan<- job.Result, *config.Config, *rsa.PublicKey)
 	clientInstance struct {
 		execFn    functioExec
-		client    *http.Client
+		client    *agentClient
 		cfg       *config.Config
 		publicKey *rsa.PublicKey
+	}
+
+	agentClient struct {
+		client    *http.Client
+		localAddr string
 	}
 )
 
@@ -98,19 +104,31 @@ func poolOptions(cfg *config.Config) functioExec {
 	}
 }
 
-func newClient() *http.Client {
+func newClient() *agentClient {
+	connection := &net.Dialer{
+		Timeout: 2 * time.Second,
+	}
+	agclient := &agentClient{}
+
 	var netTransport = &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout: 2 * time.Second,
-		}).Dial,
+		Dial: func(network, addr string) (net.Conn, error) {
+			conn, err := connection.Dial(network, addr)
+			if err == nil {
+				agclient.localAddr = conn.LocalAddr().(*net.TCPAddr).IP.String()
+			}
+			return conn, err
+		},
 		TLSHandshakeTimeout: 2 * time.Second,
 	}
-	return &http.Client{
+
+	agclient.client = &http.Client{
 		Transport: netTransport,
 	}
+	return agclient
 }
 
-func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
+func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *agentClient,
+
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config, pub *rsa.PublicKey) {
 	defer wg.Done()
 	server := "http://" + cfg.Address + "/updates/"
@@ -133,7 +151,7 @@ func workerJSONBatch(ctx context.Context, wg *sync.WaitGroup, client *http.Clien
 	}
 }
 
-func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
+func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *agentClient,
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config, pub *rsa.PublicKey) {
 	defer wg.Done()
 	server := "http://" + cfg.Address + "/update/"
@@ -155,7 +173,7 @@ func workerJSON(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 	}
 }
 
-func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
+func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *agentClient,
 	jobs <-chan job.Job, results chan<- job.Result, cfg *config.Config, pub *rsa.PublicKey) {
 	defer wg.Done()
 	server := "http://" + cfg.Address + "/update/"
@@ -178,6 +196,12 @@ func workerPlain(ctx context.Context, wg *sync.WaitGroup, client *http.Client,
 	}
 }
 
+func (p *PoolHandler) GracefulStop() {
+	for _, v := range p.clients {
+		v.client.client.CloseIdleConnections()
+	}
+}
+
 func (p *PoolHandler) StartPool(ctx context.Context, jobs chan job.Job, results chan job.Result, wg *sync.WaitGroup) {
 	for i := 0; i < p.WorkerCount; i++ {
 		wg.Add(1)
@@ -185,7 +209,7 @@ func (p *PoolHandler) StartPool(ctx context.Context, jobs chan job.Job, results 
 	}
 }
 
-func plainTxtFunc(ctx context.Context, client *http.Client, server, data string) error {
+func plainTxtFunc(ctx context.Context, client *agentClient, server, data string) error {
 	err := utils.RetryAction(ctx, utils.RetryTimes(), func(ctx context.Context) error {
 		return newPPostReq(ctx, client, server+data, http.NoBody)
 	})
@@ -195,7 +219,7 @@ func plainTxtFunc(ctx context.Context, client *http.Client, server, data string)
 	return nil
 }
 
-func jsonModelFunc(ctx context.Context, server string, client *http.Client, data *models.Metrics, cfgkey string, pub *rsa.PublicKey) error {
+func jsonModelFunc(ctx context.Context, server string, client *agentClient, data *models.Metrics, cfgkey string, pub *rsa.PublicKey) error {
 	var requestBody bytes.Buffer
 	var aeskey string
 	var key string
@@ -237,7 +261,8 @@ func jsonModelFunc(ctx context.Context, server string, client *http.Client, data
 	}
 	return nil
 }
-func jsonModelSFunc(ctx context.Context, server string, client *http.Client, data []models.Metrics, cfgkey string, pub *rsa.PublicKey) error {
+
+func jsonModelSFunc(ctx context.Context, server string, client *agentClient, data []models.Metrics, cfgkey string, pub *rsa.PublicKey) error {
 	var requestBody bytes.Buffer
 	var key string
 	var twr io.Writer
@@ -280,13 +305,19 @@ func jsonModelSFunc(ctx context.Context, server string, client *http.Client, dat
 	return nil
 }
 
-func newPPostReq(ctx context.Context, client *http.Client, server string, requestBody io.Reader) error {
+func newPPostReq(ctx context.Context, client *agentClient, server string, requestBody io.Reader) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", server, requestBody)
+
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", textPlainContent)
-	resp, err := client.Do(req)
+
+	if client.localAddr != "" {
+		req.Header.Set("X-Real-IP", client.localAddr)
+	}
+
+	resp, err := client.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -299,8 +330,9 @@ func newPPostReq(ctx context.Context, client *http.Client, server string, reques
 	return nil
 }
 
-func newJPostReq(ctx context.Context, client *http.Client, server string, requestBody io.Reader, key string, aeskey string) error {
+func newJPostReq(ctx context.Context, client *agentClient, server string, requestBody io.Reader, key string, aeskey string) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", server, requestBody)
+
 	if err != nil {
 		return err
 	}
@@ -313,11 +345,15 @@ func newJPostReq(ctx context.Context, client *http.Client, server string, reques
 		req.Header.Set("AES-256", aeskey)
 	}
 
+	if client.localAddr != "" {
+		req.Header.Set("X-Real-IP", client.localAddr)
+	}
+
 	req.Header.Set("Accept-Encoding", gzipContent)
 	req.Header.Set("Content-Encoding", gzipContent)
 	req.Header.Set("Content-Type", applicationJSONContent)
 	req.Header.Set("Accept", applicationJSONContent)
-	resp, err := client.Do(req)
+	resp, err := client.client.Do(req)
 	if err != nil {
 		return err
 	}

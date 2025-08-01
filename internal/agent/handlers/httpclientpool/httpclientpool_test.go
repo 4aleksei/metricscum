@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/4aleksei/metricscum/internal/agent/config"
-	"github.com/4aleksei/metricscum/internal/agent/handlers/httpclientpool/job"
+	"github.com/4aleksei/metricscum/internal/common/job"
 	"github.com/4aleksei/metricscum/internal/common/models"
 	"github.com/stretchr/testify/assert"
 )
@@ -56,7 +56,7 @@ func Test_Plain(t *testing.T) {
 	p.cfg = cfg
 	p.clients[0] = clientInstance{
 		execFn: poolOptions(cfg),
-		client: server.Client(),
+		client: &agentClient{client: server.Client()},
 		cfg:    cfg,
 	}
 
@@ -108,7 +108,7 @@ func Test_Json(t *testing.T) {
 	p.cfg = cfg
 	p.clients[0] = clientInstance{
 		execFn: poolOptions(cfg),
-		client: server.Client(),
+		client: &agentClient{client: server.Client()},
 		cfg:    cfg,
 	}
 
@@ -161,7 +161,7 @@ func Test_JsonBatch(t *testing.T) {
 	p.cfg = cfg
 	p.clients[0] = clientInstance{
 		execFn: poolOptions(cfg),
-		client: server.Client(),
+		client: &agentClient{client: server.Client()},
 		cfg:    cfg,
 	}
 
