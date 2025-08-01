@@ -122,6 +122,10 @@ func (s StreamMultiService) GetMetrics(in *pb.RequestMetrics, srv pb.StreamMulti
 }
 
 func getTls(cfg *config.Config) (*tls.Config, error) {
+	if cfg.PrivateCertFile == "" || cfg.PrivateKeyFile == "" {
+		return nil, nil
+	}
+
 	serverCert, err := tls.LoadX509KeyPair(cfg.PrivateCertFile, cfg.PrivateKeyFile)
 	if err != nil {
 		return nil, err
